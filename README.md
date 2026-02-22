@@ -19,11 +19,46 @@ infra/
 - `pnpm` `>= 10`
 - Docker + Docker Compose (para a infraestrutura local)
 
-### Instalação
+### Preparar `pnpm` (recomendado com Corepack)
+
+Com Node.js 22, o jeito recomendado é usar o `Corepack` para ativar a versão do `pnpm` definida no projeto:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.4.0 --activate
+pnpm -v
+```
+
+Alternativa (global):
+
+```bash
+npm i -g pnpm
+pnpm -v
+```
+
+> Evite misturar `npm` e `pnpm` neste repositório (ex.: gerar `package-lock.json` e depois usar `pnpm`).
+
+### Instalação do projeto
 
 ```bash
 pnpm install
 cp .env.example .env
+```
+
+### Fluxo rápido para testar localmente (infra)
+
+```bash
+corepack enable
+corepack prepare pnpm@10.4.0 --activate
+pnpm install
+cp .env.example .env
+pnpm docker:up
+```
+
+Para parar os containers:
+
+```bash
+pnpm docker:down
 ```
 
 ### Scripts raiz
@@ -50,6 +85,9 @@ Arquivos do ambiente local:
 Subir infraestrutura:
 
 ```bash
+corepack enable
+corepack prepare pnpm@10.4.0 --activate
+pnpm install
 cp .env.example .env
 pnpm docker:up
 ```
