@@ -1,0 +1,17 @@
+{
+  "name": "@event-pipeline/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./messaging": "./src/messaging/index.ts",
+    "./logging": "./src/logging/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

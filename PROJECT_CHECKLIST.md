@@ -30,17 +30,17 @@
 ---
 
 ## 2) Padrões base (Cross-cutting)
-- [ ] Definir envelope padrão de mensagens (event/command)
-- [ ] Criar `packages/shared` com:
-  - [ ] tipos de eventos/commands
-  - [ ] util de `correlationId` / `causationId`
-  - [ ] normalização de nomes (routing keys)
-- [ ] Definir naming padrão:
-  - [ ] exchanges: `domain.events`, `domain.commands`
-  - [ ] routing keys (ex: `files.uploaded.v1`)
-  - [ ] filas por serviço (ex: `q.validator`, `q.thumbnail`)
-- [ ] Definir estratégia de versionamento de eventos (`.v1`, `.v2`) e compatibilidade
-- [ ] Definir padrão de logs (JSON) incluindo `correlationId`
+- [x] Definir envelope padrão de mensagens (event/command)
+- [x] Criar `packages/shared` com:
+  - [x] tipos de eventos/commands
+  - [x] util de `correlationId` / `causationId`
+  - [x] normalização de nomes (routing keys)
+- [x] Definir naming padrão:
+  - [x] exchanges: `domain.events`, `domain.commands`
+  - [x] routing keys (ex: `files.uploaded.v1`)
+  - [x] filas por serviço (ex: `q.validator`, `q.thumbnail`)
+- [x] Definir estratégia de versionamento de eventos (`.v1`, `.v2`) e compatibilidade
+- [x] Definir padrão de logs (JSON) incluindo `correlationId`
 
 ---
 
