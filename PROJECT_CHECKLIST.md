@@ -16,16 +16,16 @@
 ---
 
 ## 1) Infra local (Docker Compose)
-- [ ] Criar `infra/docker-compose.yml` com:
-  - [ ] Postgres
-  - [ ] RabbitMQ (management)
-  - [ ] MinIO (S3 local + console)
-  - [ ] Keycloak
-  - [ ] Mailhog
-- [ ] Criar volumes nomeados (pg/minio) e rede interna
-- [ ] Criar init do MinIO (bucket(s) e policy) via container init ou script
-- [ ] Criar init do Keycloak (realm, client, roles: user/admin) via import JSON
-- [ ] Documentar portas e URLs locais (RabbitMQ, MinIO, Keycloak, Mailhog, Postgres)
+- [x] Criar `infra/docker-compose.yml` com:
+  - [x] Postgres
+  - [x] RabbitMQ (management)
+  - [x] MinIO (S3 local + console)
+  - [x] Keycloak
+  - [x] Mailhog
+- [x] Criar volumes nomeados (pg/minio) e rede interna
+- [x] Criar init do MinIO (bucket(s) e policy) via container init ou script
+- [x] Criar init do Keycloak (realm, client, roles: user/admin) via import JSON
+- [x] Documentar portas e URLs locais (RabbitMQ, MinIO, Keycloak, Mailhog, Postgres)
 
 ---
 

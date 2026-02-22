@@ -39,6 +39,50 @@ pnpm docker:down
 
 > `docker:up` / `docker:down` dependem de `infra/docker-compose.yml`, que será criado na etapa de infraestrutura local.
 
+### Infra local (Docker Compose)
+
+Arquivos do ambiente local:
+
+- `infra/docker-compose.yml`
+- `infra/minio/init-minio.sh` (cria buckets e aplica policies)
+- `infra/keycloak/import/realm-event-pipeline.json` (realm + clients + roles)
+
+Subir infraestrutura:
+
+```bash
+cp .env.example .env
+pnpm docker:up
+```
+
+Derrubar infraestrutura:
+
+```bash
+pnpm docker:down
+```
+
+### Portas e URLs locais
+
+- Postgres: `localhost:5432`
+- RabbitMQ (AMQP): `localhost:5672`
+- RabbitMQ Management: `http://localhost:15672`
+- MinIO API (S3): `http://localhost:9000`
+- MinIO Console: `http://localhost:9001`
+- Keycloak: `http://localhost:8080`
+- Mailhog (SMTP): `localhost:1025`
+- Mailhog UI: `http://localhost:8025`
+
+### Bootstrap local (MinIO + Keycloak)
+
+- MinIO:
+  - buckets: `uploads` (privado) e `thumbnails` (download anonimo para demo local)
+- Keycloak:
+  - realm: `event-pipeline`
+  - roles: `user`, `admin`
+  - clients: `user-web`, `admin-web`, `api-gateway`
+  - usuarios demo:
+    - `demo-user` / `demo123` (role `user`)
+    - `demo-admin` / `demo123` (roles `user`, `admin`)
+
 ## 1) Visão geral
 
 Construiremos uma plataforma **100% local e gratuita**, composta por:
@@ -462,12 +506,3 @@ Monorepo facilita muito localmente:
 4. Fechar lista oficial de eventos v1 e payloads mínimos
 
 ---
-
-Se você quiser, eu já continuo com a **documentação v0.2** incluindo:
-
-- lista completa de eventos (`type`, routing key, payload)
-- tabelas iniciais (Postgres) por serviço (incluindo `outbox_events` e `processed_events`)
-- “contrato” de RBAC (admin vs user) e endpoints do gateway
-- docker-compose completo com Keycloak + Mailhog + MinIO buckets inicializados
-
-E já deixo também um “roteiro de execução local” (subir infra, subir serviços, testar upload, inspecionar eventos no RabbitMQ e e-mails no Mailhog).
