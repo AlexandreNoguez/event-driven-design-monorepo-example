@@ -45,14 +45,14 @@
 ---
 
 ## 3) Postgres (modelo e ownership)
-- [ ] Definir estratégia: DB por serviço **ou** schema por serviço
-- [ ] Criar migrations iniciais do(s) serviço(s):
-  - [ ] upload-service: `files`, `outbox_events`
-  - [ ] projection-service: `uploads_read`, `upload_steps_read`, `upload_timeline_read`
-  - [ ] audit-service: `audit_events`
-  - [ ] notification-service: `notification_logs` (opcional)
-- [ ] Criar tabela de idempotência por consumer:
-  - [ ] `processed_events` (eventId, consumerName, processedAt)
+- [x] Definir estratégia: DB por serviço **ou** schema por serviço
+- [x] Criar migrations iniciais do(s) serviço(s):
+  - [x] upload-service: `files`, `outbox_events`
+  - [x] projection-service: `uploads_read`, `upload_steps_read`, `upload_timeline_read`
+  - [x] audit-service: `audit_events`
+  - [x] notification-service: `notification_logs` (opcional)
+- [x] Criar tabela de idempotência por consumer:
+  - [x] `processed_events` (eventId, consumerName, processedAt)
 
 ---
 
