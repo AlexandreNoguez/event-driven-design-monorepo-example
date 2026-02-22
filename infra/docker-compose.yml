@@ -43,6 +43,24 @@ services:
     networks:
       - event-pipeline-net
 
+  rabbitmq-init:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: 'no'
+    entrypoint: ['/bin/sh', '/import-definitions.sh']
+    environment:
+      RABBITMQ_HTTP_HOST: rabbitmq
+      RABBITMQ_HTTP_PORT: 15672
+      RABBITMQ_USER: ${RABBITMQ_USER:-event}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-event}
+    volumes:
+      - ./rabbitmq/definitions.json:/definitions.json:ro
+      - ./rabbitmq/import-definitions.sh:/import-definitions.sh:ro
+    networks:
+      - event-pipeline-net
+
   minio:
     image: minio/minio:latest
     restart: unless-stopped

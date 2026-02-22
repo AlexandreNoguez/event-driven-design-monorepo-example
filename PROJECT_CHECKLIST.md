@@ -57,18 +57,18 @@
 ---
 
 ## 4) RabbitMQ (topologia)
-- [ ] Criar exchanges:
-  - [ ] `domain.events` (topic)
-  - [ ] `domain.commands` (direct ou topic)
-- [ ] Criar filas e binds:
-  - [ ] `q.upload.commands` ← `commands.upload.*`
-  - [ ] `q.validator` ← `files.uploaded.*`
-  - [ ] `q.thumbnail` ← `files.validated.*`
-  - [ ] `q.extractor` ← `files.validated.*`
-  - [ ] `q.projection` ← `#`
-  - [ ] `q.notification` ← `processing.*`, `files.rejected.*`
-  - [ ] `q.audit` ← `#`
-- [ ] Configurar DLQ + retry (TTL ou estratégia definida) para cada fila
+- [x] Criar exchanges:
+  - [x] `domain.events` (topic)
+  - [x] `domain.commands` (direct ou topic)
+- [x] Criar filas e binds:
+  - [x] `q.upload.commands` ← `commands.upload.*`
+  - [x] `q.validator` ← `files.uploaded.*`
+  - [x] `q.thumbnail` ← `files.validated.*`
+  - [x] `q.extractor` ← `files.validated.*`
+  - [x] `q.projection` ← `#`
+  - [x] `q.notification` ← `processing.*`, `files.rejected.*`
+  - [x] `q.audit` ← `#`
+- [x] Configurar DLQ + retry (TTL ou estratégia definida) para cada fila
 
 ---
 

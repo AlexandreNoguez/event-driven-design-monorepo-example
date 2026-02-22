@@ -1,0 +1,77 @@
+# RabbitMQ Topologia, Retry e DLQ (Item 4)
+
+## Visão geral
+
+A topologia do RabbitMQ é importada automaticamente apos o startup do broker via service `rabbitmq-init`:
+
+- `infra/rabbitmq/definitions.json`
+- `infra/rabbitmq/import-definitions.sh`
+
+O arquivo de definitions cria:
+
+- exchanges principais (`domain.events`, `domain.commands`)
+- filas do MVP (`q.upload.commands`, `q.validator`, `q.thumbnail`, `q.extractor`, `q.projection`, `q.notification`, `q.audit`)
+- exchanges/filas de `retry` e `DLQ` por fila
+
+## Exchanges principais
+
+- `domain.events` (`topic`)
+- `domain.commands` (`topic`)
+
+## Filas e binds (MVP)
+
+- `q.upload.commands` <- `domain.commands` com `commands.upload.#`, `commands.file.reprocess.*`
+- `q.validator` <- `domain.events` com `files.uploaded.*`
+- `q.thumbnail` <- `domain.events` com `files.validated.*`
+- `q.extractor` <- `domain.events` com `files.validated.*`
+- `q.projection` <- `domain.events` com `#`
+- `q.notification` <- `domain.events` com `processing.#`, `files.rejected.*`
+- `q.audit` <- `domain.events` com `#`
+
+## Estratégia de retry + DLQ (por fila)
+
+### Objetivo
+
+Evitar que retry de um consumer republique o evento no exchange principal e gere duplicidade em outros consumers.
+
+### Desenho adotado
+
+Para cada fila `q.X`, são criados:
+
+- exchange de retry: `retry.q.X` (`direct`)
+- fila de retry: `q.X.retry` (TTL)
+- exchange de DLQ: `dlq.q.X` (`direct`)
+- fila de DLQ: `q.X.dlq`
+
+### Fluxo de retry (TTL)
+
+1. Consumer faz `nack`/reject com `requeue=false` em erro retryable.
+2. A fila principal `q.X` dead-lettera para `retry.q.X` com routing key fixa `retry`.
+3. A mensagem entra em `q.X.retry` (TTL padrao: `15000ms`).
+4. Ao expirar TTL, `q.X.retry` dead-lettera para o default exchange (`""`) com routing key = `q.X`.
+5. A mensagem volta somente para a fila original `q.X` (sem republish para `domain.events`/`domain.commands`).
+
+### Fluxo de DLQ (estratégia definida)
+
+- Após `N` tentativas (MVP sugerido: `3`), o consumer deve fazer parking manual na DLQ da propria fila:
+  - publicar em `dlq.q.X` com routing key `parking`
+  - `ack` da mensagem atual
+- Isso evita loop infinito de retry e preserva isolamento por consumer.
+
+Observação:
+
+- O contador pode ser derivado do header `x-death` do RabbitMQ (incrementado nas passagens pela `q.X.retry`).
+
+## Como reaplicar a topologia após alterar definitions
+
+O import ocorre quando o `rabbitmq-init` executa. Para recarregar:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --force-recreate rabbitmq rabbitmq-init
+```
+
+## Referências de infraestrutura
+
+- `infra/docker-compose.yml`
+- `infra/rabbitmq/definitions.json`
+- `infra/rabbitmq/import-definitions.sh`

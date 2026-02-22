@@ -1,0 +1,539 @@
+{
+  "users": [],
+  "vhosts": [],
+  "permissions": [],
+  "topic_permissions": [],
+  "parameters": [],
+  "global_parameters": [],
+  "policies": [],
+  "queues": [
+    {
+      "name": "q.upload.commands",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.upload.commands",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.upload.commands.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.upload.commands"
+      }
+    },
+    {
+      "name": "q.upload.commands.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "q.validator",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.validator",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.validator.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.validator"
+      }
+    },
+    {
+      "name": "q.validator.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "q.thumbnail",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.thumbnail",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.thumbnail.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.thumbnail"
+      }
+    },
+    {
+      "name": "q.thumbnail.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "q.extractor",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.extractor",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.extractor.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.extractor"
+      }
+    },
+    {
+      "name": "q.extractor.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "q.projection",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.projection",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.projection.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.projection"
+      }
+    },
+    {
+      "name": "q.projection.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "q.notification",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.notification",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.notification.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.notification"
+      }
+    },
+    {
+      "name": "q.notification.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "q.audit",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "retry.q.audit",
+        "x-dead-letter-routing-key": "retry"
+      }
+    },
+    {
+      "name": "q.audit.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 15000,
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "q.audit"
+      }
+    },
+    {
+      "name": "q.audit.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "domain.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "domain.commands",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.upload.commands",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.upload.commands",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.validator",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.validator",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.thumbnail",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.thumbnail",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.extractor",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.extractor",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.projection",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.projection",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.notification",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.notification",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "retry.q.audit",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlq.q.audit",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "domain.commands",
+      "vhost": "/",
+      "destination": "q.upload.commands",
+      "destination_type": "queue",
+      "routing_key": "commands.upload.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.commands",
+      "vhost": "/",
+      "destination": "q.upload.commands",
+      "destination_type": "queue",
+      "routing_key": "commands.file.reprocess.*",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.upload.commands",
+      "vhost": "/",
+      "destination": "q.upload.commands.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.upload.commands",
+      "vhost": "/",
+      "destination": "q.upload.commands.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.validator",
+      "destination_type": "queue",
+      "routing_key": "files.uploaded.*",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.validator",
+      "vhost": "/",
+      "destination": "q.validator.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.validator",
+      "vhost": "/",
+      "destination": "q.validator.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.thumbnail",
+      "destination_type": "queue",
+      "routing_key": "files.validated.*",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.thumbnail",
+      "vhost": "/",
+      "destination": "q.thumbnail.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.thumbnail",
+      "vhost": "/",
+      "destination": "q.thumbnail.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.extractor",
+      "destination_type": "queue",
+      "routing_key": "files.validated.*",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.extractor",
+      "vhost": "/",
+      "destination": "q.extractor.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.extractor",
+      "vhost": "/",
+      "destination": "q.extractor.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.projection",
+      "destination_type": "queue",
+      "routing_key": "#",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.projection",
+      "vhost": "/",
+      "destination": "q.projection.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.projection",
+      "vhost": "/",
+      "destination": "q.projection.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.notification",
+      "destination_type": "queue",
+      "routing_key": "processing.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.notification",
+      "destination_type": "queue",
+      "routing_key": "files.rejected.*",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.notification",
+      "vhost": "/",
+      "destination": "q.notification.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.notification",
+      "vhost": "/",
+      "destination": "q.notification.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "q.audit",
+      "destination_type": "queue",
+      "routing_key": "#",
+      "arguments": {}
+    },
+    {
+      "source": "retry.q.audit",
+      "vhost": "/",
+      "destination": "q.audit.retry",
+      "destination_type": "queue",
+      "routing_key": "retry",
+      "arguments": {}
+    },
+    {
+      "source": "dlq.q.audit",
+      "vhost": "/",
+      "destination": "q.audit.dlq",
+      "destination_type": "queue",
+      "routing_key": "parking",
+      "arguments": {}
+    }
+  ]
+}
