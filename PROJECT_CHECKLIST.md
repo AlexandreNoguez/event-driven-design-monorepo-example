@@ -1,0 +1,230 @@
+# ✅ Checklist do Projeto — Event-Driven Upload Pipeline (v0.1)
+
+> Marque itens concluídos trocando `[ ]` por `[x]`.
+> Este arquivo foi pensado para ficar na **raiz do repositório**.
+
+---
+
+## 0) Preparação do repositório
+- [x] Criar monorepo (apps/ + services/ + packages/ + infra/)
+- [x] Padronizar Node.js (ex: `.nvmrc` / Volta) e package manager (pnpm/npm/yarn)
+- [x] Configurar scripts raiz: `dev`, `lint`, `format`, `test`, `docker:up`, `docker:down`
+- [x] Configurar ESLint/Prettier (root) e regras compartilhadas
+- [x] Criar `.env.example` (root) com variáveis de infra e serviços
+- [x] Adicionar `README.md` com instruções de setup local
+
+---
+
+## 1) Infra local (Docker Compose)
+- [ ] Criar `infra/docker-compose.yml` com:
+  - [ ] Postgres
+  - [ ] RabbitMQ (management)
+  - [ ] MinIO (S3 local + console)
+  - [ ] Keycloak
+  - [ ] Mailhog
+- [ ] Criar volumes nomeados (pg/minio) e rede interna
+- [ ] Criar init do MinIO (bucket(s) e policy) via container init ou script
+- [ ] Criar init do Keycloak (realm, client, roles: user/admin) via import JSON
+- [ ] Documentar portas e URLs locais (RabbitMQ, MinIO, Keycloak, Mailhog, Postgres)
+
+---
+
+## 2) Padrões base (Cross-cutting)
+- [ ] Definir envelope padrão de mensagens (event/command)
+- [ ] Criar `packages/shared` com:
+  - [ ] tipos de eventos/commands
+  - [ ] util de `correlationId` / `causationId`
+  - [ ] normalização de nomes (routing keys)
+- [ ] Definir naming padrão:
+  - [ ] exchanges: `domain.events`, `domain.commands`
+  - [ ] routing keys (ex: `files.uploaded.v1`)
+  - [ ] filas por serviço (ex: `q.validator`, `q.thumbnail`)
+- [ ] Definir estratégia de versionamento de eventos (`.v1`, `.v2`) e compatibilidade
+- [ ] Definir padrão de logs (JSON) incluindo `correlationId`
+
+---
+
+## 3) Postgres (modelo e ownership)
+- [ ] Definir estratégia: DB por serviço **ou** schema por serviço
+- [ ] Criar migrations iniciais do(s) serviço(s):
+  - [ ] upload-service: `files`, `outbox_events`
+  - [ ] projection-service: `uploads_read`, `upload_steps_read`, `upload_timeline_read`
+  - [ ] audit-service: `audit_events`
+  - [ ] notification-service: `notification_logs` (opcional)
+- [ ] Criar tabela de idempotência por consumer:
+  - [ ] `processed_events` (eventId, consumerName, processedAt)
+
+---
+
+## 4) RabbitMQ (topologia)
+- [ ] Criar exchanges:
+  - [ ] `domain.events` (topic)
+  - [ ] `domain.commands` (direct ou topic)
+- [ ] Criar filas e binds:
+  - [ ] `q.upload.commands` ← `commands.upload.*`
+  - [ ] `q.validator` ← `files.uploaded.*`
+  - [ ] `q.thumbnail` ← `files.validated.*`
+  - [ ] `q.extractor` ← `files.validated.*`
+  - [ ] `q.projection` ← `#`
+  - [ ] `q.notification` ← `processing.*`, `files.rejected.*`
+  - [ ] `q.audit` ← `#`
+- [ ] Configurar DLQ + retry (TTL ou estratégia definida) para cada fila
+
+---
+
+## 5) Serviços backend (NestJS)
+### 5.1 api-gateway (HTTP/BFF)
+- [ ] Criar serviço `api-gateway`
+- [ ] Integrar Keycloak (JWT validation)
+- [ ] Endpoints v0:
+  - [ ] `POST /uploads` (iniciar upload)
+  - [ ] `GET /uploads/:fileId/status`
+  - [ ] `GET /uploads` (minha lista / admin lista)
+  - [ ] `POST /admin/uploads/:fileId/reprocess` (admin)
+- [ ] Publicar commands no RabbitMQ (UploadRequested, ReprocessRequested)
+
+### 5.2 upload-service
+- [ ] Criar serviço `upload-service`
+- [ ] Implementar command handler `UploadRequested`
+- [ ] Upload flow (escolher 1):
+  - [ ] Multipart via gateway → upload-service → MinIO
+  - [ ] Presigned URL MinIO (recomendado) + confirmação
+- [ ] Persistir `files` + `outbox_events` (mesma transação)
+- [ ] Publicar `FileUploaded.v1` via Outbox Publisher
+
+### 5.3 validator-service
+- [ ] Criar serviço `validator-service`
+- [ ] Consumir `FileUploaded.v1`
+- [ ] Implementar validação (mime/tamanho/assinatura)
+- [ ] Publicar `FileValidated.v1` ou `FileRejected.v1`
+- [ ] Implementar idempotência (processed_events)
+
+### 5.4 thumbnail-service
+- [ ] Criar serviço `thumbnail-service`
+- [ ] Consumir `FileValidated.v1`
+- [ ] Gerar thumbnail (sharp) e salvar no MinIO
+- [ ] Publicar `ThumbnailGenerated.v1`
+- [ ] Implementar idempotência (processed_events)
+
+### 5.5 extractor-service
+- [ ] Criar serviço `extractor-service`
+- [ ] Consumir `FileValidated.v1`
+- [ ] Extrair metadata (dimensões, checksum, etc.)
+- [ ] Publicar `MetadataExtracted.v1`
+- [ ] Implementar idempotência (processed_events)
+
+### 5.6 projection-service (read model)
+- [ ] Criar serviço `projection-service`
+- [ ] Consumir eventos:
+  - [ ] `FileUploaded.v1`
+  - [ ] `FileValidated.v1`
+  - [ ] `FileRejected.v1`
+  - [ ] `ThumbnailGenerated.v1`
+  - [ ] `MetadataExtracted.v1`
+  - [ ] `ProcessingCompleted.v1` (quando existir)
+- [ ] Atualizar tabelas read:
+  - [ ] status por etapa
+  - [ ] timeline por upload
+- [ ] Expor API interna (opcional) ou acesso direto pelo gateway via DB
+- [ ] Implementar idempotência (processed_events)
+
+### 5.7 notification-service (Mailhog)
+- [ ] Criar serviço `notification-service`
+- [ ] Consumir `ProcessingCompleted.v1` e `FileRejected.v1`
+- [ ] Enviar e-mail via SMTP (Mailhog)
+- [ ] Persistir log de notificação
+- [ ] Implementar idempotência (processed_events)
+
+### 5.8 audit-service
+- [ ] Criar serviço `audit-service`
+- [ ] Consumir todos eventos (`#`)
+- [ ] Persistir audit log imutável (tipo, occurredAt, correlationId, payload resumido)
+- [ ] Implementar idempotência (processed_events)
+
+---
+
+## 6) Eventos e contratos (v1)
+- [ ] Definir (type + routing key + payload) para:
+  - [ ] `UploadRequested.v1` (command)
+  - [ ] `FileUploaded.v1`
+  - [ ] `FileValidated.v1`
+  - [ ] `FileRejected.v1`
+  - [ ] `ThumbnailGenerated.v1`
+  - [ ] `MetadataExtracted.v1`
+  - [ ] `ProcessingCompleted.v1`
+  - [ ] `ReprocessFileRequested.v1` (command)
+- [ ] Documentar exemplos JSON para cada evento/command
+- [ ] Definir regras de compatibilidade e evolução (.v2)
+
+---
+
+## 7) Robustez e qualidade
+- [ ] Outbox Pattern completo (publisher + retry)
+- [ ] DLQ visível e processo de “re-drive” (admin)
+- [ ] Regras de retry (ex: 3 tentativas + DLQ)
+- [ ] Timeouts e limites (tamanho máximo, tipos suportados)
+- [ ] Padronizar erros (códigos e mensagens) no gateway
+- [ ] Logs estruturados com `correlationId` em todos serviços
+
+---
+
+## 8) Frontend — user-web (Vite)
+- [ ] Criar app `user-web`
+- [ ] Login (Keycloak)
+- [ ] Tela de upload
+- [ ] Tela de “meus uploads”
+- [ ] Tela de detalhe: status por etapa + timeline
+- [ ] Polling (MVP) ou SSE/WebSocket (v0.2)
+
+---
+
+## 9) Frontend — admin-web (Vite)
+- [ ] Criar app `admin-web`
+- [ ] Login (Keycloak) + role admin
+- [ ] Listagem global de uploads + filtros básicos
+- [ ] Detalhe: status + timeline + erros
+- [ ] Ação: reprocessar (command)
+- [ ] Ação: re-drive DLQ (v0.2)
+
+---
+
+## 10) Testes
+- [ ] Unit tests (mínimo) para handlers de eventos/commands
+- [ ] Contract tests para mensagens (schema/validation)
+- [ ] Teste de fluxo E2E local:
+  - [ ] upload → validated → thumbnail+metadata → completed
+  - [ ] cenário de erro → rejected → email → audit
+
+---
+
+## 11) Documentação
+- [ ] `README.md` com:
+  - [ ] como subir infra
+  - [ ] como rodar serviços e front
+  - [ ] URLs locais (RabbitMQ, Keycloak, MinIO, Mailhog)
+  - [ ] passo a passo de teste manual do fluxo
+- [ ] `docs/architecture.md` com diagramas (flow + sequence)
+- [ ] `docs/events.md` com catálogo de eventos e payloads
+
+---
+
+## 12) “Definition of Done” (DoD) do MVP
+
+- [ ] Usuário faz upload e vê status por etapa até concluir
+- [ ] Admin vê visão global e consegue reprocessar
+- [ ] Eventos trafegam via RabbitMQ com DLQ configurado
+- [ ] Outbox e idempotência implementados
+- [ ] Notificação (Mailhog) enviada em sucesso/falha
+- [ ] Audit log registrando todo o fluxo
+
+## 13) Arquitetura Frontend (regra obrigatória)
+- [ ] Definir estado global com Zustand para cada app (`user-web` e `admin-web`)
+- [ ] Proibir lógica de negócio em componentes de apresentação
+- [ ] Centralizar regras de negócio, effects e integração com APIs em hooks customizados
+- [ ] Criar organização base de frontend:
+  - [ ] `stores/` (estado global)
+  - [ ] `hooks/` (casos de uso e regras)
+  - [ ] `components/ui/` (apresentação pura)
+  - [ ] `components/feature/` (composição sem regra de negócio)
+- [ ] Garantir que componentes de apresentação recebam apenas `props` e callbacks
+- [ ] Definir guideline de revisão: PR é bloqueado se houver regra de negócio em componente visual

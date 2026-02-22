@@ -1,0 +1,28 @@
+{
+  "name": "event-driven-upload-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo do projeto Event-Driven Upload Pipeline.",
+  "packageManager": "pnpm@10.4.0",
+  "engines": {
+    "node": ">=22 <23",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present dev",
+    "lint": "pnpm -r --if-present lint && eslint .",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check .",
+    "test": "pnpm -r --if-present test",
+    "docker:up": "docker compose -f infra/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.24.0"
+  }
+}
