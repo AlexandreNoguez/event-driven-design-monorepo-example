@@ -74,7 +74,7 @@
 
 ## 5) Serviços backend (NestJS)
 ### 5.1 api-gateway (HTTP/BFF)
-- [ ] Criar serviço `api-gateway`
+- [x] Criar serviço `api-gateway`
 - [ ] Integrar Keycloak (JWT validation)
 - [ ] Endpoints v0:
   - [ ] `POST /uploads` (iniciar upload)
@@ -84,7 +84,7 @@
 - [ ] Publicar commands no RabbitMQ (UploadRequested, ReprocessRequested)
 
 ### 5.2 upload-service
-- [ ] Criar serviço `upload-service`
+- [x] Criar serviço `upload-service`
 - [ ] Implementar command handler `UploadRequested`
 - [ ] Upload flow (escolher 1):
   - [ ] Multipart via gateway → upload-service → MinIO
@@ -93,28 +93,28 @@
 - [ ] Publicar `FileUploaded.v1` via Outbox Publisher
 
 ### 5.3 validator-service
-- [ ] Criar serviço `validator-service`
+- [x] Criar serviço `validator-service`
 - [ ] Consumir `FileUploaded.v1`
 - [ ] Implementar validação (mime/tamanho/assinatura)
 - [ ] Publicar `FileValidated.v1` ou `FileRejected.v1`
 - [ ] Implementar idempotência (processed_events)
 
 ### 5.4 thumbnail-service
-- [ ] Criar serviço `thumbnail-service`
+- [x] Criar serviço `thumbnail-service`
 - [ ] Consumir `FileValidated.v1`
 - [ ] Gerar thumbnail (sharp) e salvar no MinIO
 - [ ] Publicar `ThumbnailGenerated.v1`
 - [ ] Implementar idempotência (processed_events)
 
 ### 5.5 extractor-service
-- [ ] Criar serviço `extractor-service`
+- [x] Criar serviço `extractor-service`
 - [ ] Consumir `FileValidated.v1`
 - [ ] Extrair metadata (dimensões, checksum, etc.)
 - [ ] Publicar `MetadataExtracted.v1`
 - [ ] Implementar idempotência (processed_events)
 
 ### 5.6 projection-service (read model)
-- [ ] Criar serviço `projection-service`
+- [x] Criar serviço `projection-service`
 - [ ] Consumir eventos:
   - [ ] `FileUploaded.v1`
   - [ ] `FileValidated.v1`
@@ -129,14 +129,14 @@
 - [ ] Implementar idempotência (processed_events)
 
 ### 5.7 notification-service (Mailhog)
-- [ ] Criar serviço `notification-service`
+- [x] Criar serviço `notification-service`
 - [ ] Consumir `ProcessingCompleted.v1` e `FileRejected.v1`
 - [ ] Enviar e-mail via SMTP (Mailhog)
 - [ ] Persistir log de notificação
 - [ ] Implementar idempotência (processed_events)
 
 ### 5.8 audit-service
-- [ ] Criar serviço `audit-service`
+- [x] Criar serviço `audit-service`
 - [ ] Consumir todos eventos (`#`)
 - [ ] Persistir audit log imutável (tipo, occurredAt, correlationId, payload resumido)
 - [ ] Implementar idempotência (processed_events)
