@@ -133,10 +133,10 @@
 
 ### 5.7 notification-service (Mailhog)
 - [x] Criar serviço `notification-service`
-- [ ] Consumir `ProcessingCompleted.v1` e `FileRejected.v1`
-- [ ] Enviar e-mail via SMTP (Mailhog)
-- [ ] Persistir log de notificação
-- [ ] Implementar idempotência (processed_events)
+- [x] Consumir `ProcessingCompleted.v1` e `FileRejected.v1`
+- [x] Enviar e-mail via SMTP (Mailhog)
+- [x] Persistir log de notificação
+- [x] Implementar idempotência (processed_events)
 
 ### 5.8 audit-service
 - [x] Criar serviço `audit-service`
