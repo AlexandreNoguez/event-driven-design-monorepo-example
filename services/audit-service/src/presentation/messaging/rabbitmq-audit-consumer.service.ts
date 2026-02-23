@@ -49,7 +49,7 @@ export class RabbitMqAuditConsumerService implements OnModuleInit, OnModuleDestr
       this.logger.warn('AMQP channel closed for audit consumer.');
     });
 
-    await channel.assertQueue(queue, { durable: true });
+    await channel.checkQueue(queue);
     await channel.prefetch(prefetch);
 
     const consumed = await channel.consume(queue, async (message: amqp.ConsumeMessage | null) => {
