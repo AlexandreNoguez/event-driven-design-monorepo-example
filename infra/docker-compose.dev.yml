@@ -1,4 +1,27 @@
 services:
+  workspace-deps:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+      target: base
+    restart: "no"
+    command: ["pnpm", "install", "--frozen-lockfile"]
+    volumes:
+      - ..:/workspace
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
   api-gateway:
     build:
       context: ..
@@ -6,6 +29,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       minio:
@@ -35,8 +60,16 @@ services:
       - "${API_GATEWAY_PORT:-3000}:3000"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -48,6 +81,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -68,8 +103,16 @@ services:
       - "${UPLOAD_SERVICE_PORT:-3002}:3002"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -81,6 +124,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -109,8 +154,16 @@ services:
       - "${VALIDATOR_SERVICE_PORT:-3003}:3003"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -122,6 +175,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -153,8 +208,16 @@ services:
       - "${THUMBNAIL_SERVICE_PORT:-3004}:3004"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -166,6 +229,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -193,8 +258,16 @@ services:
       - "${EXTRACTOR_SERVICE_PORT:-3005}:3005"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -206,6 +279,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -222,8 +297,16 @@ services:
       - "${PROJECTION_SERVICE_PORT:-3001}:3001"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -235,6 +318,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -261,8 +346,16 @@ services:
       - "${NOTIFICATION_SERVICE_PORT:-3006}:3006"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
@@ -274,6 +367,8 @@ services:
       target: dev
     restart: unless-stopped
     depends_on:
+      workspace-deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -293,8 +388,16 @@ services:
       - "${AUDIT_SERVICE_PORT:-3007}:3007"
     volumes:
       - ..:/workspace
-      - workspace-node-modules:/workspace/node_modules
-      - workspace-pnpm-store:/pnpm/store
+      - type: volume
+        source: workspace-node-modules
+        target: /workspace/node_modules
+        volume:
+          nocopy: true
+      - type: volume
+        source: workspace-pnpm-store
+        target: /pnpm/store
+        volume:
+          nocopy: true
     working_dir: /workspace
     networks:
       - event-pipeline-net
