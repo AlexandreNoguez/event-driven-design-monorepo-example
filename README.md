@@ -192,13 +192,13 @@ A proposta central: um **pipeline de upload** em etapas (validar → gerar thumb
 
 - Expõe REST para os frontends
 - Valida JWT do Keycloak (RBAC: user/admin)
-- Publica **Commands** no RabbitMQ e retorna `correlationId`/`fileId`
+- Inicia upload com **presigned URL** MinIO (`POST /uploads`)
+- Confirma upload e publica **Commands** no RabbitMQ (`POST /uploads/:fileId/confirm`)
 - Fornece endpoints de leitura consultando **read model** (projection)
 
 2. **upload-service** (Command handler)
 
-- Recebe comando `UploadRequested`
-- Gera presigned URL (MinIO) **ou** aceita upload via gateway (decidimos no MVP)
+- Recebe comando `UploadRequested` (após confirmação do upload no gateway)
 - Persiste `file` + `outbox_events`
 - Publica `FileUploaded.v1`
 
@@ -207,6 +207,7 @@ A proposta central: um **pipeline de upload** em etapas (validar → gerar thumb
 - Consome `FileUploaded.v1`
 - Valida (mime, tamanho, assinatura, integridade)
 - Publica `FileValidated.v1` ou `FileRejected.v1`
+- Implementa idempotência via `processed_events`
 
 4. **thumbnail-service** (Event consumer)
 
@@ -349,9 +350,13 @@ sequenceDiagram
   participant DB as Postgres
 
   U->>G: POST /uploads (auth JWT)
+  G->>S3: generate presigned PUT URL
+  G-->>U: fileId + correlationId + presigned URL
+  U->>S3: PUT object (presigned)
+  U->>G: POST /uploads/:fileId/confirm
+  G->>S3: stat object (size/etag)
   G->>MQ: Command UploadRequested
   MQ->>UP: UploadRequested
-  UP->>S3: save object (or presigned flow)
   UP->>DB: file + outbox (tx)
   UP->>MQ: Event FileUploaded.v1 (via outbox publisher)
 
@@ -529,10 +534,42 @@ Monorepo facilita muito localmente:
 
 ---
 
+## 12.1) Estrutura interna dos serviços backend (DDD tático)
+
+Os serviços NestJS backend foram padronizados com **DDD tático** para facilitar testabilidade e evolução.
+
+Estrutura padrão por serviço:
+
+```text
+src/
+  domain/          # entidades, value objects, regras puras, tipos de domínio
+  application/     # use cases, ports (interfaces/tokens), orquestração
+  infrastructure/  # adapters concretos (RabbitMQ, Postgres, MinIO, Keycloak, etc.)
+  presentation/    # controllers HTTP, consumers AMQP, workers/schedulers, guards
+  app.module.ts    # composition root / wiring de dependências
+  main.ts          # bootstrap
+```
+
+Regras práticas de dependência:
+
+- `presentation` depende de `application` (e pode usar tipos de `domain`)
+- `application` depende de `domain` e de `ports` (interfaces), não de adapters concretos
+- `infrastructure` implementa `ports` da `application`
+- `domain` não depende de NestJS nem de infraestrutura
+
+Exemplos atuais:
+
+- `services/api-gateway` (auth, endpoints v0, presigned URL + confirmação)
+- `services/upload-service` (command handler + outbox publisher)
+- `services/validator-service` (consumer `FileUploaded.v1`, validação, idempotência)
+
+---
+
 ## 13) Próximos passos (para fechar o planejamento)
 
 1. Definir o **MVP do upload**:
-   - via gateway (multipart) **ou** presigned direto no MinIO (mais realista)
+   - decisão tomada no MVP atual: **presigned URL MinIO + confirmação no gateway**
+   - evolução futura opcional: multipart/resumable upload
 
 2. Definir estratégia de DB:
    - 1 Postgres com **1 database por serviço** (recomendado)

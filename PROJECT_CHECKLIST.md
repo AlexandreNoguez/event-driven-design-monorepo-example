@@ -73,11 +73,14 @@
 ---
 
 ## 5) Serviços backend (NestJS)
+- [x] Padronizar estrutura DDD tática nos serviços backend (`domain`, `application`, `infrastructure`, `presentation`)
+
 ### 5.1 api-gateway (HTTP/BFF)
 - [x] Criar serviço `api-gateway`
 - [x] Integrar Keycloak (JWT validation)
 - [x] Endpoints v0:
   - [x] `POST /uploads` (iniciar upload)
+  - [x] `POST /uploads/:fileId/confirm` (confirmar upload no MinIO e publicar command)
   - [x] `GET /uploads/:fileId/status`
   - [x] `GET /uploads` (minha lista / admin lista)
   - [x] `POST /admin/uploads/:fileId/reprocess` (admin)
