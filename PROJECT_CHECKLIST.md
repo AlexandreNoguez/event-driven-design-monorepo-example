@@ -111,10 +111,10 @@
 
 ### 5.5 extractor-service
 - [x] Criar serviço `extractor-service`
-- [ ] Consumir `FileValidated.v1`
-- [ ] Extrair metadata (dimensões, checksum, etc.)
-- [ ] Publicar `MetadataExtracted.v1`
-- [ ] Implementar idempotência (processed_events)
+- [x] Consumir `FileValidated.v1`
+- [x] Extrair metadata (dimensões, checksum, etc.)
+- [x] Publicar `MetadataExtracted.v1`
+- [x] Implementar idempotência (processed_events)
 
 ### 5.6 projection-service (read model)
 - [x] Criar serviço `projection-service`
