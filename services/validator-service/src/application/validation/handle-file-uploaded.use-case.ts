@@ -22,6 +22,7 @@ import {
   VALIDATOR_PROCESSED_EVENTS_PORT,
   type ValidatorProcessedEventsPort,
 } from './ports/validator-processed-events.port';
+import { ValidatorServiceConfigService } from '../../infrastructure/config/validator-service-config.service';
 
 @Injectable()
 export class HandleFileUploadedUseCase {
@@ -34,10 +35,11 @@ export class HandleFileUploadedUseCase {
     private readonly eventsPublisher: ValidatorEventsPublisherPort,
     @Inject(VALIDATOR_PROCESSED_EVENTS_PORT)
     private readonly processedEvents: ValidatorProcessedEventsPort,
+    private readonly config: ValidatorServiceConfigService,
   ) {}
 
   async execute(event: FileUploadedEvent): Promise<{ skipped: boolean; publishedType?: string }> {
-    const consumerName = process.env.VALIDATOR_SERVICE_CONSUMER_NAME ?? 'validator:file-uploaded';
+    const consumerName = this.config.consumerName;
 
     if (await this.processedEvents.hasProcessedEvent(event.messageId, consumerName)) {
       this.logger.log(`Skipping already processed event ${event.messageId} (${consumerName}).`);
@@ -48,7 +50,7 @@ export class HandleFileUploadedUseCase {
     const signatureBytes = await this.fileObjectReader.readObjectHeader(
       event.payload.bucket,
       event.payload.objectKey,
-      parseHeaderProbeBytes(process.env.VALIDATOR_SERVICE_SIGNATURE_READ_BYTES, 64),
+      this.config.signatureReadBytes,
     );
 
     const decision = validateUploadedFile(
@@ -59,8 +61,8 @@ export class HandleFileUploadedUseCase {
         headerBytes: signatureBytes,
       },
       {
-        maxSizeBytes: parseMaxSizeBytes(process.env.VALIDATOR_SERVICE_MAX_SIZE_BYTES),
-        allowedMimeTypes: parseAllowedMimeTypes(process.env.VALIDATOR_SERVICE_ALLOWED_MIME_TYPES),
+        maxSizeBytes: parseMaxSizeBytes(String(this.config.maxSizeBytes)),
+        allowedMimeTypes: parseAllowedMimeTypes(this.config.allowedMimeTypesCsv),
       },
     );
 
@@ -106,9 +108,4 @@ export class HandleFileUploadedUseCase {
       publishedType: nextEvent.type,
     };
   }
-}
-
-function parseHeaderProbeBytes(raw: string | undefined, fallback: number): number {
-  const parsed = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

@@ -4,6 +4,7 @@ import type {
   MarkProcessedEventInput,
   ValidatorProcessedEventsPort,
 } from '../../application/validation/ports/validator-processed-events.port';
+import { ValidatorServiceConfigService } from '../config/validator-service-config.service';
 
 @Injectable()
 export class PostgresValidatorProcessedEventsAdapter
@@ -12,14 +13,9 @@ export class PostgresValidatorProcessedEventsAdapter
   private readonly logger = new Logger(PostgresValidatorProcessedEventsAdapter.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for validator-service.');
-    }
-
+  constructor(config: ValidatorServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "pnpm exec nest start",
-    "dev": "pnpm exec nest start --watch",
+    "start": "/bin/bash -lc 'set -a; [ -f ../../.env ] && source ../../.env; pnpm exec nest start'",
+    "dev": "/bin/bash -lc 'set -a; [ -f ../../.env ] && source ../../.env; pnpm exec nest start --watch'",
     "build": "pnpm exec nest build",
     "start:prod": "node dist/main.js",
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",

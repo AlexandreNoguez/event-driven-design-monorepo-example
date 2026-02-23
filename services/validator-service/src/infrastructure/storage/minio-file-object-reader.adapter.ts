@@ -4,17 +4,22 @@ import type {
   FileObjectReaderPort,
   FileObjectStat,
 } from '../../application/validation/ports/file-object-reader.port';
+import { ValidatorServiceConfigService } from '../config/validator-service-config.service';
 
 @Injectable()
 export class MinioFileObjectReaderAdapter implements FileObjectReaderPort {
-  private readonly client = new Client({
-    endPoint: process.env.MINIO_ENDPOINT ?? 'localhost',
-    port: parsePort(process.env.MINIO_API_PORT, 9000),
-    useSSL: (process.env.MINIO_USE_SSL ?? 'false').toLowerCase() === 'true',
-    accessKey: process.env.MINIO_ROOT_USER ?? 'minioadmin',
-    secretKey: process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin',
-    region: process.env.S3_REGION ?? 'us-east-1',
-  });
+  private readonly client: Client;
+
+  constructor(config: ValidatorServiceConfigService) {
+    this.client = new Client({
+      endPoint: config.minioEndpoint,
+      port: config.minioApiPort,
+      useSSL: config.minioUseSsl,
+      accessKey: config.minioRootUser,
+      secretKey: config.minioRootPassword,
+      region: config.s3Region,
+    });
+  }
 
   async statObject(bucket: string, objectKey: string): Promise<FileObjectStat> {
     const stat = (await this.client.statObject(bucket, objectKey)) as {
@@ -45,11 +50,6 @@ export class MinioFileObjectReaderAdapter implements FileObjectReaderPort {
 
     return new Uint8Array(Buffer.concat(chunks));
   }
-}
-
-function parsePort(raw: string | undefined, fallback: number): number {
-  const value = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function normalizeEtag(etag?: string): string | undefined {

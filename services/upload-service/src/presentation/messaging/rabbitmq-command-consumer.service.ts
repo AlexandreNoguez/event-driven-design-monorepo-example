@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import { HandleUploadRequestedUseCase } from '../../application/uploads/handle-upload-requested.use-case';
 import type { UploadRequestedCommandEnvelope } from '../../domain/uploads/upload-message.types';
+import { UploadServiceConfigService } from '../../infrastructure/config/upload-service-config.service';
 
 @Injectable()
 export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -10,7 +11,10 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
   private channel?: amqp.Channel;
   private consumerTag?: string;
 
-  constructor(private readonly handleUploadRequestedUseCase: HandleUploadRequestedUseCase) {}
+  constructor(
+    private readonly handleUploadRequestedUseCase: HandleUploadRequestedUseCase,
+    private readonly config: UploadServiceConfigService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.startConsumer();
@@ -21,9 +25,9 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
   }
 
   private async startConsumer(): Promise<void> {
-    const amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-    const queue = process.env.UPLOAD_SERVICE_COMMAND_QUEUE ?? 'q.upload.commands';
-    const prefetch = this.parsePositiveInt(process.env.UPLOAD_SERVICE_COMMAND_PREFETCH, 10);
+    const amqpUrl = this.config.rabbitmqUrl;
+    const queue = this.config.commandQueue;
+    const prefetch = this.config.commandPrefetch;
 
     const connection = await amqp.connect(amqpUrl);
     const channel = await connection.createChannel();
@@ -97,15 +101,6 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
       );
       channel.nack(message, false, false);
     }
-  }
-
-  private parsePositiveInt(raw: string | undefined, fallback: number): number {
-    if (!raw) {
-      return fallback;
-    }
-
-    const value = Number.parseInt(raw, 10);
-    return Number.isFinite(value) && value > 0 ? value : fallback;
   }
 
   private async stopConsumer(): Promise<void> {

@@ -2,16 +2,18 @@
   "name": "@event-pipeline/shared",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
-    ".": "./src/index.ts",
-    "./messaging": "./src/messaging/index.ts",
-    "./logging": "./src/logging/index.ts"
+    ".": "./dist/index.js",
+    "./messaging": "./dist/messaging/index.js",
+    "./logging": "./dist/logging/index.js"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

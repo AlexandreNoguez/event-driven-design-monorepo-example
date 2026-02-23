@@ -3,6 +3,7 @@ import { once } from 'node:events';
 import * as amqp from 'amqplib';
 import type { UploadEventsPublisherPort } from '../../application/uploads/ports/events-publisher.port';
 import type { FileUploadedEventEnvelope } from '../../domain/uploads/upload-message.types';
+import { UploadServiceConfigService } from '../config/upload-service-config.service';
 
 @Injectable()
 export class RabbitMqUploadEventsPublisherAdapter implements UploadEventsPublisherPort, OnModuleDestroy {
@@ -11,11 +12,13 @@ export class RabbitMqUploadEventsPublisherAdapter implements UploadEventsPublish
   private channel?: amqp.ConfirmChannel;
   private channelPromise?: Promise<amqp.ConfirmChannel>;
 
+  constructor(private readonly config: UploadServiceConfigService) {}
+
   async publishFileUploaded(
     envelope: FileUploadedEventEnvelope,
     routingKey = 'files.uploaded.v1',
   ): Promise<void> {
-    const exchange = process.env.RABBITMQ_EXCHANGE_EVENTS ?? 'domain.events';
+    const exchange = this.config.rabbitmqEventsExchange;
     const channel = await this.getChannel(exchange);
     const payload = Buffer.from(JSON.stringify(envelope));
 
@@ -82,8 +85,7 @@ export class RabbitMqUploadEventsPublisherAdapter implements UploadEventsPublish
   }
 
   private async createChannel(exchange: string): Promise<amqp.ConfirmChannel> {
-    const amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-    const connection = await amqp.connect(amqpUrl);
+    const connection = await amqp.connect(this.config.rabbitmqUrl);
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error) => {

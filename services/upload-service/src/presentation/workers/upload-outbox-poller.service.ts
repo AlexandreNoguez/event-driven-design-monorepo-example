@@ -1,15 +1,19 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PublishUploadOutboxBatchService } from '../../application/uploads/publish-upload-outbox-batch.service';
+import { UploadServiceConfigService } from '../../infrastructure/config/upload-service-config.service';
 
 @Injectable()
 export class UploadOutboxPollerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(UploadOutboxPollerService.name);
   private timer?: NodeJS.Timeout;
 
-  constructor(private readonly publishUploadOutboxBatchService: PublishUploadOutboxBatchService) {}
+  constructor(
+    private readonly publishUploadOutboxBatchService: PublishUploadOutboxBatchService,
+    private readonly config: UploadServiceConfigService,
+  ) {}
 
   onModuleInit(): void {
-    const intervalMs = parsePositiveInt(process.env.UPLOAD_SERVICE_OUTBOX_POLL_INTERVAL_MS, 2000);
+    const intervalMs = this.config.outboxPollIntervalMs;
     this.timer = setInterval(() => {
       void this.safePublishPendingBatch();
     }, intervalMs);
@@ -35,13 +39,4 @@ export class UploadOutboxPollerService implements OnModuleInit, OnModuleDestroy 
       );
     }
   }
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  if (!raw) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

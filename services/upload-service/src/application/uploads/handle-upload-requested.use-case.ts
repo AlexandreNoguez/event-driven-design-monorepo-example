@@ -8,6 +8,7 @@ import {
   UPLOAD_REPOSITORY_PORT,
   type UploadRepositoryPort,
 } from './ports/upload-repository.port';
+import { UploadServiceConfigService } from '../../infrastructure/config/upload-service-config.service';
 
 @Injectable()
 export class HandleUploadRequestedUseCase {
@@ -16,15 +17,13 @@ export class HandleUploadRequestedUseCase {
   constructor(
     @Inject(UPLOAD_REPOSITORY_PORT)
     private readonly repository: UploadRepositoryPort,
+    private readonly config: UploadServiceConfigService,
   ) {}
 
   async execute(command: UploadRequestedCommandEnvelope): Promise<void> {
-    const bucket = process.env.MINIO_BUCKET_UPLOADS ?? 'uploads';
-    const objectKeyPrefix = process.env.UPLOAD_SERVICE_OBJECT_KEY_PREFIX ?? 'raw';
-
     const fileUploadedEvent = createFileUploadedEventEnvelope(command, {
-      bucket,
-      objectKeyPrefix,
+      bucket: this.config.minioUploadsBucket,
+      objectKeyPrefix: this.config.uploadObjectKeyPrefix,
     });
 
     const input: PersistUploadAndOutboxInput = {

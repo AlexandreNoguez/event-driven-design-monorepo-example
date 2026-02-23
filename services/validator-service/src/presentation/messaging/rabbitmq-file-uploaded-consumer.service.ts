@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import type { DomainEventV1 } from '@event-pipeline/shared';
 import { HandleFileUploadedUseCase } from '../../application/validation/handle-file-uploaded.use-case';
+import { ValidatorServiceConfigService } from '../../infrastructure/config/validator-service-config.service';
 
 @Injectable()
 export class RabbitMqFileUploadedConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -10,7 +11,10 @@ export class RabbitMqFileUploadedConsumerService implements OnModuleInit, OnModu
   private channel?: amqp.Channel;
   private consumerTag?: string;
 
-  constructor(private readonly handleFileUploadedUseCase: HandleFileUploadedUseCase) {}
+  constructor(
+    private readonly handleFileUploadedUseCase: HandleFileUploadedUseCase,
+    private readonly config: ValidatorServiceConfigService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.startConsumer();
@@ -21,9 +25,9 @@ export class RabbitMqFileUploadedConsumerService implements OnModuleInit, OnModu
   }
 
   private async startConsumer(): Promise<void> {
-    const amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-    const queue = process.env.VALIDATOR_SERVICE_QUEUE ?? 'q.validator';
-    const prefetch = parsePositiveInt(process.env.VALIDATOR_SERVICE_PREFETCH, 10);
+    const amqpUrl = this.config.rabbitmqUrl;
+    const queue = this.config.queue;
+    const prefetch = this.config.prefetch;
 
     const connection = await amqp.connect(amqpUrl);
     const channel = await connection.createChannel();
@@ -128,11 +132,6 @@ export class RabbitMqFileUploadedConsumerService implements OnModuleInit, OnModu
       // ignore shutdown errors
     }
   }
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const parsed = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function isFileUploadedEvent(value: unknown): value is DomainEventV1<'FileUploaded.v1'> {

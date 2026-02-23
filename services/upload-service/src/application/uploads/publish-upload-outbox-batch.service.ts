@@ -7,6 +7,7 @@ import {
   UPLOAD_REPOSITORY_PORT,
   type UploadRepositoryPort,
 } from './ports/upload-repository.port';
+import { UploadServiceConfigService } from '../../infrastructure/config/upload-service-config.service';
 
 @Injectable()
 export class PublishUploadOutboxBatchService {
@@ -18,6 +19,7 @@ export class PublishUploadOutboxBatchService {
     private readonly repository: UploadRepositoryPort,
     @Inject(UPLOAD_EVENTS_PUBLISHER_PORT)
     private readonly eventsPublisher: UploadEventsPublisherPort,
+    private readonly config: UploadServiceConfigService,
   ) {}
 
   async publishPendingBatch(): Promise<void> {
@@ -27,8 +29,7 @@ export class PublishUploadOutboxBatchService {
 
     this.isPublishing = true;
     try {
-      const batchSize = parsePositiveInt(process.env.UPLOAD_SERVICE_OUTBOX_BATCH_SIZE, 50);
-      const pending = await this.repository.findPendingOutboxEvents(batchSize);
+      const pending = await this.repository.findPendingOutboxEvents(this.config.outboxBatchSize);
 
       for (const event of pending) {
         try {
@@ -51,13 +52,4 @@ export class PublishUploadOutboxBatchService {
       this.isPublishing = false;
     }
   }
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  if (!raw) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

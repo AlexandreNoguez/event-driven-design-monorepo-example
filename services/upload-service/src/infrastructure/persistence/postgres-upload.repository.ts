@@ -5,6 +5,7 @@ import type {
   PersistUploadAndOutboxInput,
 } from '../../domain/uploads/upload-message.types';
 import type { UploadRepositoryPort } from '../../application/uploads/ports/upload-repository.port';
+import { UploadServiceConfigService } from '../config/upload-service-config.service';
 
 interface OutboxRow {
   event_id: string;
@@ -17,14 +18,9 @@ export class PostgresUploadRepository implements UploadRepositoryPort, OnModuleD
   private readonly logger = new Logger(PostgresUploadRepository.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for upload-service.');
-    }
-
+  constructor(config: UploadServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

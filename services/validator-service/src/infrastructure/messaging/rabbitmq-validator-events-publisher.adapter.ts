@@ -3,6 +3,7 @@ import { once } from 'node:events';
 import * as amqp from 'amqplib';
 import type { DomainEventV1 } from '@event-pipeline/shared';
 import type { ValidatorEventsPublisherPort } from '../../application/validation/ports/validator-events-publisher.port';
+import { ValidatorServiceConfigService } from '../config/validator-service-config.service';
 
 @Injectable()
 export class RabbitMqValidatorEventsPublisherAdapter
@@ -13,8 +14,10 @@ export class RabbitMqValidatorEventsPublisherAdapter
   private channel?: amqp.ConfirmChannel;
   private channelPromise?: Promise<amqp.ConfirmChannel>;
 
+  constructor(private readonly config: ValidatorServiceConfigService) {}
+
   async publishDomainEvent(event: DomainEventV1, routingKey: string): Promise<void> {
-    const exchange = process.env.RABBITMQ_EXCHANGE_EVENTS ?? 'domain.events';
+    const exchange = this.config.rabbitmqEventsExchange;
     const channel = await this.getChannel(exchange);
     const payload = Buffer.from(JSON.stringify(event));
 
@@ -81,8 +84,7 @@ export class RabbitMqValidatorEventsPublisherAdapter
   }
 
   private async createChannel(exchange: string): Promise<amqp.ConfirmChannel> {
-    const amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-    const connection = await amqp.connect(amqpUrl);
+    const connection = await amqp.connect(this.config.rabbitmqUrl);
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error: unknown) => {
