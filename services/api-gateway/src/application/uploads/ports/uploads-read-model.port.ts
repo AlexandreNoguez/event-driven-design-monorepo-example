@@ -1,10 +1,22 @@
 import type { ApiUploadRecord } from '../../../domain/uploads/upload-record';
 
+export interface UpsertInitiatedInput {
+  fileId: string;
+  correlationId: string;
+  userId: string;
+  userName: string;
+  tenantId?: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 export interface UpsertRequestedInput {
   fileId: string;
   correlationId: string;
   userId: string;
   userName: string;
+  tenantId?: string;
   fileName: string;
   contentType: string;
   sizeBytes: number;
@@ -27,6 +39,7 @@ export interface ListUploadsReadModelInput {
 export const UPLOADS_READ_MODEL_REPOSITORY = Symbol('UPLOADS_READ_MODEL_REPOSITORY');
 
 export interface UploadsReadModelRepository {
+  upsertInitiated(input: UpsertInitiatedInput): ApiUploadRecord;
   upsertRequested(input: UpsertRequestedInput): ApiUploadRecord;
   markReprocessRequested(input: MarkReprocessRequestedInput): ApiUploadRecord;
   getById(fileId: string): ApiUploadRecord | undefined;

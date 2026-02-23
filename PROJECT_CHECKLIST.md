@@ -86,18 +86,18 @@
 ### 5.2 upload-service
 - [x] Criar serviço `upload-service`
 - [x] Implementar command handler `UploadRequested`
-- [ ] Upload flow (escolher 1):
+- [x] Upload flow (escolher 1):
   - [ ] Multipart via gateway → upload-service → MinIO
-  - [ ] Presigned URL MinIO (recomendado) + confirmação
+  - [x] Presigned URL MinIO (recomendado) + confirmação
 - [x] Persistir `files` + `outbox_events` (mesma transação)
 - [x] Publicar `FileUploaded.v1` via Outbox Publisher
 
 ### 5.3 validator-service
 - [x] Criar serviço `validator-service`
-- [ ] Consumir `FileUploaded.v1`
-- [ ] Implementar validação (mime/tamanho/assinatura)
-- [ ] Publicar `FileValidated.v1` ou `FileRejected.v1`
-- [ ] Implementar idempotência (processed_events)
+- [x] Consumir `FileUploaded.v1`
+- [x] Implementar validação (mime/tamanho/assinatura)
+- [x] Publicar `FileValidated.v1` ou `FileRejected.v1`
+- [x] Implementar idempotência (processed_events)
 
 ### 5.4 thumbnail-service
 - [x] Criar serviço `thumbnail-service`

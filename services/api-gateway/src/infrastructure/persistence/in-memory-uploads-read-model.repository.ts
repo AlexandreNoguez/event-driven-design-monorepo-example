@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   ListUploadsReadModelInput,
   MarkReprocessRequestedInput,
+  UpsertInitiatedInput,
   UpsertRequestedInput,
   UploadsReadModelRepository,
 } from '../../application/uploads/ports/uploads-read-model.port';
@@ -10,6 +11,40 @@ import type { ApiUploadRecord, UploadTimelineItem } from '../../domain/uploads/u
 @Injectable()
 export class InMemoryUploadsReadModelRepository implements UploadsReadModelRepository {
   private readonly uploads = new Map<string, ApiUploadRecord>();
+
+  upsertInitiated(input: UpsertInitiatedInput): ApiUploadRecord {
+    const now = new Date().toISOString();
+    const existing = this.uploads.get(input.fileId);
+
+    const timeline = existing?.timeline ?? [];
+    timeline.push(
+      this.timelineItem('UploadSessionInitiated.local', input.correlationId, {
+        fileName: input.fileName,
+        contentType: input.contentType,
+        sizeBytes: input.sizeBytes,
+      }),
+    );
+
+    const next: ApiUploadRecord = {
+      fileId: input.fileId,
+      correlationId: input.correlationId,
+      userId: input.userId,
+      userName: input.userName,
+      tenantId: input.tenantId,
+      fileName: input.fileName,
+      contentType: input.contentType,
+      sizeBytes: input.sizeBytes,
+      status: 'upload-url-issued',
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      reprocessCount: existing?.reprocessCount ?? 0,
+      lastCommand: 'UploadSessionInitiated.local',
+      timeline,
+    };
+
+    this.uploads.set(input.fileId, next);
+    return next;
+  }
 
   upsertRequested(input: UpsertRequestedInput): ApiUploadRecord {
     const now = new Date().toISOString();
@@ -29,6 +64,7 @@ export class InMemoryUploadsReadModelRepository implements UploadsReadModelRepos
       correlationId: input.correlationId,
       userId: input.userId,
       userName: input.userName,
+      tenantId: input.tenantId ?? existing?.tenantId,
       fileName: input.fileName,
       contentType: input.contentType,
       sizeBytes: input.sizeBytes,
@@ -62,6 +98,7 @@ export class InMemoryUploadsReadModelRepository implements UploadsReadModelRepos
       correlationId: input.correlationId,
       userId: existing?.userId ?? input.requestedByUserId,
       userName: existing?.userName ?? input.requestedByUserName,
+      tenantId: existing?.tenantId,
       fileName: existing?.fileName ?? '(unknown)',
       contentType: existing?.contentType ?? 'application/octet-stream',
       sizeBytes: existing?.sizeBytes ?? 0,

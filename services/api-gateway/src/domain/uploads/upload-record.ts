@@ -6,13 +6,17 @@ export interface UploadTimelineItem {
   payload: Record<string, unknown>;
 }
 
-export type UploadCommandType = 'UploadRequested.v1' | 'ReprocessFileRequested.v1';
+export type UploadActionType =
+  | 'UploadSessionInitiated.local'
+  | 'UploadRequested.v1'
+  | 'ReprocessFileRequested.v1';
 
 export interface ApiUploadRecord {
   fileId: string;
   correlationId: string;
   userId: string;
   userName: string;
+  tenantId?: string;
   fileName: string;
   contentType: string;
   sizeBytes: number;
@@ -20,6 +24,6 @@ export interface ApiUploadRecord {
   createdAt: string;
   updatedAt: string;
   reprocessCount: number;
-  lastCommand: UploadCommandType;
+  lastCommand: UploadActionType;
   timeline: UploadTimelineItem[];
 }

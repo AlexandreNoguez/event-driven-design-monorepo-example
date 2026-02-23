@@ -11,7 +11,11 @@ import { UploadsApplicationService } from '../../../application/uploads/uploads.
 import type { AuthenticatedUser } from '../../../domain/auth/authenticated-user';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
-import type { CreateUploadRequestBody, ReprocessUploadRequestBody } from './uploads.http-types';
+import type {
+  ConfirmUploadRequestBody,
+  CreateUploadRequestBody,
+  ReprocessUploadRequestBody,
+} from './uploads.http-types';
 
 @Controller()
 export class UploadsController {
@@ -30,6 +34,21 @@ export class UploadsController {
       sizeBytes: body?.sizeBytes,
       user,
       correlationId,
+    });
+  }
+
+  @Post('uploads/:fileId/confirm')
+  async confirmUpload(
+    @Param('fileId') fileId: string,
+    @Body() body: ConfirmUploadRequestBody,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('x-correlation-id') correlationId?: string,
+  ) {
+    return this.uploadsService.confirmUpload({
+      fileId,
+      requester: user,
+      correlationId,
+      eTag: body?.eTag,
     });
   }
 

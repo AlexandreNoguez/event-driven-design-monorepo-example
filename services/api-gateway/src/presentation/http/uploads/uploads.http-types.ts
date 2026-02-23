@@ -8,3 +8,7 @@ export interface CreateUploadRequestBody {
 export interface ReprocessUploadRequestBody {
   reason?: string;
 }
+
+export interface ConfirmUploadRequestBody {
+  eTag?: string;
+}

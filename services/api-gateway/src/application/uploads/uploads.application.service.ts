@@ -17,6 +17,10 @@ import {
   type CommandPublisher,
 } from './ports/command-publisher.port';
 import {
+  UPLOAD_OBJECT_STORAGE,
+  type UploadObjectStorage,
+} from './ports/upload-object-storage.port';
+import {
   UPLOADS_READ_MODEL_REPOSITORY,
   type UploadsReadModelRepository,
 } from './ports/uploads-read-model.port';
@@ -28,6 +32,13 @@ interface RequestUploadInput {
   sizeBytes: number;
   user: AuthenticatedUser;
   correlationId?: string;
+}
+
+interface ConfirmUploadInput {
+  fileId: string;
+  requester: AuthenticatedUser;
+  correlationId?: string;
+  eTag?: string;
 }
 
 interface ListUploadsInput {
@@ -56,6 +67,8 @@ export class UploadsApplicationService {
     private readonly uploadsStore: UploadsReadModelRepository,
     @Inject(COMMAND_PUBLISHER)
     private readonly publisher: CommandPublisher,
+    @Inject(UPLOAD_OBJECT_STORAGE)
+    private readonly uploadObjectStorage: UploadObjectStorage,
   ) {}
 
   async requestUpload(input: RequestUploadInput) {
@@ -63,13 +76,91 @@ export class UploadsApplicationService {
     const fileId = parsed.fileId ?? generateUuid();
     const correlationId = ensureCorrelationId(input.correlationId);
 
-    const payload: UploadRequestedCommandPayload = {
+    const presigned = await this.uploadObjectStorage.createPresignedUploadUrl({
       fileId,
       fileName: parsed.fileName,
       contentType: parsed.contentType,
-      sizeBytes: parsed.sizeBytes,
+    });
+
+    const record = this.uploadsStore.upsertInitiated({
+      fileId,
+      correlationId,
       userId: input.user.subject,
+      userName: input.user.username,
       tenantId: input.user.tenantId,
+      fileName: parsed.fileName,
+      contentType: parsed.contentType,
+      sizeBytes: parsed.sizeBytes,
+    });
+
+    this.logger.log(`Presigned upload URL issued for fileId=${fileId}`);
+
+    return {
+      fileId: record.fileId,
+      correlationId: record.correlationId,
+      status: record.status,
+      initiatedAt: record.updatedAt,
+      upload: {
+        method: presigned.method,
+        url: presigned.url,
+        bucket: presigned.bucket,
+        objectKey: presigned.objectKey,
+        expiresAt: presigned.expiresAt,
+        requiredHeaders: presigned.requiredHeaders,
+      },
+      next: {
+        confirmEndpoint: `/uploads/${record.fileId}/confirm`,
+      },
+    };
+  }
+
+  async confirmUpload(input: ConfirmUploadInput) {
+    const fileId = normalizeRequiredString(input.fileId, 'fileId');
+    const record = this.assertUploadVisibleToRequester(fileId, input.requester);
+
+    if (record.status === 'upload-requested') {
+      return {
+        fileId: record.fileId,
+        correlationId: record.correlationId,
+        status: record.status,
+        alreadyConfirmed: true,
+        acceptedAt: record.updatedAt,
+      };
+    }
+
+    const correlationId = ensureCorrelationId(input.correlationId ?? record.correlationId);
+
+    const objectRef = this.uploadObjectStorage.resolveUploadObjectRef({
+      fileId: record.fileId,
+      fileName: record.fileName,
+    });
+
+    let stat;
+    try {
+      stat = await this.uploadObjectStorage.statUploadedObject(objectRef);
+    } catch {
+      throw new BadRequestException(
+        `Uploaded object not found in storage for file "${record.fileId}". Confirm after sending the PUT to MinIO.`,
+      );
+    }
+
+    if (stat.sizeBytes !== record.sizeBytes) {
+      throw new BadRequestException(
+        `Uploaded object size mismatch for file "${record.fileId}". Expected ${record.sizeBytes} bytes, got ${stat.sizeBytes}.`,
+      );
+    }
+
+    if (input.eTag && stat.eTag && normalizeEtag(input.eTag) !== normalizeEtag(stat.eTag)) {
+      throw new BadRequestException(`ETag mismatch for file "${record.fileId}".`);
+    }
+
+    const payload: UploadRequestedCommandPayload = {
+      fileId: record.fileId,
+      fileName: record.fileName,
+      contentType: record.contentType,
+      sizeBytes: record.sizeBytes,
+      userId: record.userId,
+      tenantId: record.tenantId,
     };
 
     const envelope = this.createCommandEnvelope<UploadRequestedCommandPayload>({
@@ -80,25 +171,32 @@ export class UploadsApplicationService {
 
     await this.publisher.publishCommand(envelope, 'commands.upload.requested.v1');
 
-    const record = this.uploadsStore.upsertRequested({
-      fileId,
+    const nextRecord = this.uploadsStore.upsertRequested({
+      fileId: record.fileId,
       correlationId,
-      userId: input.user.subject,
-      userName: input.user.username,
-      fileName: parsed.fileName,
-      contentType: parsed.contentType,
-      sizeBytes: parsed.sizeBytes,
+      userId: record.userId,
+      userName: record.userName,
+      tenantId: record.tenantId,
+      fileName: record.fileName,
+      contentType: record.contentType,
+      sizeBytes: record.sizeBytes,
     });
 
-    this.logger.log(`UploadRequested.v1 published for fileId=${fileId}`);
+    this.logger.log(`UploadRequested.v1 published for fileId=${record.fileId} after storage confirmation`);
 
     return {
-      fileId: record.fileId,
-      correlationId: record.correlationId,
-      status: record.status,
+      fileId: nextRecord.fileId,
+      correlationId: nextRecord.correlationId,
+      status: nextRecord.status,
       commandType: envelope.type,
       routingKey: 'commands.upload.requested.v1',
-      acceptedAt: record.updatedAt,
+      acceptedAt: nextRecord.updatedAt,
+      storage: {
+        bucket: stat.bucket,
+        objectKey: stat.objectKey,
+        eTag: stat.eTag,
+        sizeBytes: stat.sizeBytes,
+      },
     };
   }
 
@@ -118,17 +216,7 @@ export class UploadsApplicationService {
   }
 
   getUploadStatus(input: GetUploadStatusInput) {
-    const isAdmin = input.requester.roles.includes('admin');
-    const record = this.uploadsStore.getById(input.fileId);
-
-    if (!record) {
-      throw new NotFoundException(`Upload "${input.fileId}" not found.`);
-    }
-
-    if (!isAdmin && record.userId !== input.requester.subject) {
-      throw new NotFoundException(`Upload "${input.fileId}" not found.`);
-    }
-
+    const record = this.assertUploadVisibleToRequester(input.fileId, input.requester);
     return this.toStatusResponse(record);
   }
 
@@ -172,6 +260,21 @@ export class UploadsApplicationService {
       acceptedAt: record.updatedAt,
       reason,
     };
+  }
+
+  private assertUploadVisibleToRequester(fileId: string, requester: AuthenticatedUser): ApiUploadRecord {
+    const isAdmin = requester.roles.includes('admin');
+    const record = this.uploadsStore.getById(fileId);
+
+    if (!record) {
+      throw new NotFoundException(`Upload "${fileId}" not found.`);
+    }
+
+    if (!isAdmin && record.userId !== requester.subject) {
+      throw new NotFoundException(`Upload "${fileId}" not found.`);
+    }
+
+    return record;
   }
 
   private parseCreateUploadInput(input: RequestUploadInput) {
@@ -228,6 +331,7 @@ export class UploadsApplicationService {
       owner: {
         userId: record.userId,
         username: record.userName,
+        tenantId: record.tenantId,
       },
       lastCommand: record.lastCommand,
       timeline: record.timeline,
@@ -281,4 +385,8 @@ function normalizePositiveInteger(value: unknown, fieldName: string): number {
   }
 
   return value;
+}
+
+function normalizeEtag(value: string): string {
+  return value.trim().replace(/^"|"$/g, '');
 }
