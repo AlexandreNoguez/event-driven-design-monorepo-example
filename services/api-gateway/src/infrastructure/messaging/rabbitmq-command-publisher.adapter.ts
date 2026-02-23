@@ -5,6 +5,7 @@ import type {
   CommandEnvelopeLike,
   CommandPublisher,
 } from '../../application/uploads/ports/command-publisher.port';
+import { ApiGatewayConfigService } from '../config/api-gateway-config.service';
 
 @Injectable()
 export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModuleDestroy {
@@ -12,14 +13,14 @@ export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModu
   private connection?: amqp.ChannelModel;
   private channel?: amqp.ConfirmChannel;
   private channelPromise?: Promise<amqp.ConfirmChannel>;
-  private readonly amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-  private readonly commandsExchange = process.env.RABBITMQ_EXCHANGE_COMMANDS ?? 'domain.commands';
+
+  constructor(private readonly config: ApiGatewayConfigService) {}
 
   async publishCommand(envelope: CommandEnvelopeLike, routingKey: string): Promise<void> {
     const channel = await this.getChannel();
     const payload = Buffer.from(JSON.stringify(envelope));
 
-    const published = channel.publish(this.commandsExchange, routingKey, payload, {
+    const published = channel.publish(this.config.rabbitmqCommandsExchange, routingKey, payload, {
       contentType: 'application/json',
       contentEncoding: 'utf-8',
       deliveryMode: 2,
@@ -63,7 +64,7 @@ export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModu
   }
 
   private async createChannel(): Promise<amqp.ConfirmChannel> {
-    const connection = await amqp.connect(this.amqpUrl);
+    const connection = await amqp.connect(this.config.rabbitmqUrl);
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error) => {
@@ -88,7 +89,7 @@ export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModu
       this.resetChannelState();
     });
 
-    await channel.assertExchange(this.commandsExchange, 'topic', { durable: true });
+    await channel.assertExchange(this.config.rabbitmqCommandsExchange, 'topic', { durable: true });
 
     this.connection = connection;
     this.channel = channel;

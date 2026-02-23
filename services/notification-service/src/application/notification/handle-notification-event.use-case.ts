@@ -12,6 +12,7 @@ import {
   NOTIFICATION_REPOSITORY_PORT,
   type NotificationRepositoryPort,
 } from './ports/notification-repository.port';
+import { NotificationServiceConfigService } from '../../infrastructure/config/notification-service-config.service';
 
 @Injectable()
 export class HandleNotificationEventUseCase {
@@ -22,10 +23,11 @@ export class HandleNotificationEventUseCase {
     private readonly repository: NotificationRepositoryPort,
     @Inject(NOTIFICATION_MAILER_PORT)
     private readonly mailer: NotificationMailerPort,
+    private readonly config: NotificationServiceConfigService,
   ) {}
 
   async execute(input: NotifiableEventWithRoutingKey): Promise<{ skipped: boolean; sent: boolean }> {
-    const consumerName = process.env.NOTIFICATION_SERVICE_CONSUMER_NAME ?? 'notification:events';
+    const consumerName = this.config.consumerName;
     const event = input.event;
 
     if (await this.repository.hasProcessedEvent(event.messageId, consumerName)) {
@@ -35,8 +37,8 @@ export class HandleNotificationEventUseCase {
 
     const template = buildNotificationTemplate(event);
     const recipient = resolveRecipientForEvent(event, {
-      fallbackRecipient: process.env.NOTIFICATION_FALLBACK_TO,
-      defaultRecipientDomain: process.env.NOTIFICATION_DEFAULT_RECIPIENT_DOMAIN,
+      fallbackRecipient: this.config.fallbackRecipient,
+      defaultRecipientDomain: this.config.defaultRecipientDomain,
     });
 
     const attempt = await this.repository.recordNotificationAttempt({

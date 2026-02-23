@@ -5,15 +5,18 @@ import type {
   SendEmailInput,
   SendEmailResult,
 } from '../../application/notification/ports/notification-mailer.port';
+import { NotificationServiceConfigService } from '../config/notification-service-config.service';
 
 @Injectable()
 export class SmtpNotificationMailerAdapter implements NotificationMailerPort {
   private readonly logger = new Logger(SmtpNotificationMailerAdapter.name);
   private transporter?: Transporter;
 
+  constructor(private readonly config: NotificationServiceConfigService) {}
+
   async sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
     const transporter = this.getTransporter();
-    const from = process.env.MAIL_FROM ?? 'no-reply@event-pipeline.local';
+    const from = this.config.mailFrom;
 
     const info = await transporter.sendMail({
       from,
@@ -35,11 +38,11 @@ export class SmtpNotificationMailerAdapter implements NotificationMailerPort {
       return this.transporter;
     }
 
-    const host = process.env.MAILHOG_SMTP_HOST ?? 'localhost';
-    const port = parsePositiveInt(process.env.MAILHOG_SMTP_PORT, 1025);
-    const secure = (process.env.NOTIFICATION_SMTP_SECURE ?? 'false').toLowerCase() === 'true';
-    const user = (process.env.NOTIFICATION_SMTP_USER ?? '').trim();
-    const pass = (process.env.NOTIFICATION_SMTP_PASSWORD ?? '').trim();
+    const host = this.config.smtpHost;
+    const port = this.config.smtpPort;
+    const secure = this.config.smtpSecure;
+    const user = this.config.smtpUser.trim();
+    const pass = this.config.smtpPassword.trim();
 
     this.transporter = nodemailer.createTransport({
       host,
@@ -50,9 +53,4 @@ export class SmtpNotificationMailerAdapter implements NotificationMailerPort {
 
     return this.transporter;
   }
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const parsed = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

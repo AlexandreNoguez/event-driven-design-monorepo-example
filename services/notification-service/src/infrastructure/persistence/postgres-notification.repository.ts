@@ -6,6 +6,7 @@ import type {
   NotificationLogAttemptInput,
   NotificationRepositoryPort,
 } from '../../application/notification/ports/notification-repository.port';
+import { NotificationServiceConfigService } from '../config/notification-service-config.service';
 
 interface NotificationLogAttemptRow {
   notification_id: number;
@@ -17,14 +18,9 @@ export class PostgresNotificationRepository implements NotificationRepositoryPor
   private readonly logger = new Logger(PostgresNotificationRepository.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for notification-service.');
-    }
-
+  constructor(config: NotificationServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

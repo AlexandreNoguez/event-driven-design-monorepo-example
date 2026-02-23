@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ACCESS_TOKEN_VERIFIER } from './application/auth/ports/access-token-verifier.port';
 import { COMMAND_PUBLISHER } from './application/uploads/ports/command-publisher.port';
@@ -7,6 +8,11 @@ import { UPLOADS_READ_MODEL_REPOSITORY } from './application/uploads/ports/uploa
 import { UploadsApplicationService } from './application/uploads/uploads.application.service';
 import { ServiceInfoQuery } from './application/system/service-info.query';
 import { KeycloakAccessTokenVerifierService } from './infrastructure/auth/keycloak-access-token-verifier.service';
+import {
+  API_GATEWAY_ENV_FILE_PATHS,
+  ApiGatewayConfigService,
+  validateApiGatewayEnvironment,
+} from './infrastructure/config/api-gateway-config.service';
 import { RabbitMqCommandPublisherAdapter } from './infrastructure/messaging/rabbitmq-command-publisher.adapter';
 import { InMemoryUploadsReadModelRepository } from './infrastructure/persistence/in-memory-uploads-read-model.repository';
 import { MinioUploadObjectStorageAdapter } from './infrastructure/storage/minio-upload-object-storage.adapter';
@@ -16,9 +22,17 @@ import { UploadsController } from './presentation/http/uploads/uploads.controlle
 import { AppController } from './presentation/http/system/app.controller';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      envFilePath: API_GATEWAY_ENV_FILE_PATHS,
+      validate: validateApiGatewayEnvironment,
+    }),
+  ],
   controllers: [AppController, UploadsController],
   providers: [
+    ApiGatewayConfigService,
     ServiceInfoQuery,
     KeycloakAccessTokenVerifierService,
     {

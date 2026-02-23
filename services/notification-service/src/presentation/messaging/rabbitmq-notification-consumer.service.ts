@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import { HandleNotificationEventUseCase } from '../../application/notification/handle-notification-event.use-case';
 import { isNotifiableEvent } from '../../domain/notification/notifiable-event';
+import { NotificationServiceConfigService } from '../../infrastructure/config/notification-service-config.service';
 
 @Injectable()
 export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -10,7 +11,10 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
   private channel?: amqp.Channel;
   private consumerTag?: string;
 
-  constructor(private readonly handleNotificationEventUseCase: HandleNotificationEventUseCase) {}
+  constructor(
+    private readonly handleNotificationEventUseCase: HandleNotificationEventUseCase,
+    private readonly config: NotificationServiceConfigService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.startConsumer();
@@ -21,9 +25,9 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
   }
 
   private async startConsumer(): Promise<void> {
-    const amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-    const queue = process.env.NOTIFICATION_SERVICE_QUEUE ?? 'q.notification';
-    const prefetch = parsePositiveInt(process.env.NOTIFICATION_SERVICE_PREFETCH, 10);
+    const amqpUrl = this.config.rabbitmqUrl;
+    const queue = this.config.queue;
+    const prefetch = this.config.prefetch;
 
     const connection = await amqp.connect(amqpUrl);
     const channel = await connection.createChannel();
@@ -136,9 +140,4 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
       // ignore shutdown errors
     }
   }
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const parsed = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

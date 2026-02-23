@@ -3,6 +3,7 @@ import { once } from 'node:events';
 import * as amqp from 'amqplib';
 import type { DomainEventV1 } from '@event-pipeline/shared';
 import type { ExtractorEventsPublisherPort } from '../../application/extractor/ports/extractor-events-publisher.port';
+import { ExtractorServiceConfigService } from '../config/extractor-service-config.service';
 
 @Injectable()
 export class RabbitMqExtractorEventsPublisherAdapter
@@ -13,8 +14,10 @@ export class RabbitMqExtractorEventsPublisherAdapter
   private channel?: amqp.ConfirmChannel;
   private channelPromise?: Promise<amqp.ConfirmChannel>;
 
+  constructor(private readonly config: ExtractorServiceConfigService) {}
+
   async publishDomainEvent(event: DomainEventV1, routingKey: string): Promise<void> {
-    const exchange = process.env.RABBITMQ_EXCHANGE_EVENTS ?? 'domain.events';
+    const exchange = this.config.rabbitmqEventsExchange;
     const channel = await this.getChannel(exchange);
     const payload = Buffer.from(JSON.stringify(event));
 
@@ -81,8 +84,7 @@ export class RabbitMqExtractorEventsPublisherAdapter
   }
 
   private async createChannel(exchange: string): Promise<amqp.ConfirmChannel> {
-    const amqpUrl = process.env.RABBITMQ_URL ?? 'amqp://event:event@localhost:5672';
-    const connection = await amqp.connect(amqpUrl);
+    const connection = await amqp.connect(this.config.rabbitmqUrl);
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error: unknown) => {

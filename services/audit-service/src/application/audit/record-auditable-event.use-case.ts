@@ -5,6 +5,7 @@ import {
   AUDIT_REPOSITORY_PORT,
   type AuditRepositoryPort,
 } from './ports/audit-repository.port';
+import { AuditServiceConfigService } from '../../infrastructure/config/audit-service-config.service';
 
 @Injectable()
 export class RecordAuditableEventUseCase {
@@ -13,19 +14,20 @@ export class RecordAuditableEventUseCase {
   constructor(
     @Inject(AUDIT_REPOSITORY_PORT)
     private readonly repository: AuditRepositoryPort,
+    private readonly config: AuditServiceConfigService,
   ) {}
 
   async execute(input: AuditableEventWithRoutingKey): Promise<{ applied: boolean }> {
-    const consumerName = process.env.AUDIT_SERVICE_CONSUMER_NAME ?? 'audit:events';
+    const consumerName = this.config.consumerName;
 
     const result = await this.repository.storeAuditableEvent({
       event: input.event,
       routingKey: input.routingKey,
       consumerName,
       payloadSummary: summarizePayloadForAudit(input.event.payload, {
-        maxDepth: parsePositiveInt(process.env.AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_DEPTH, 3),
-        maxArrayItems: parsePositiveInt(process.env.AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_ARRAY_ITEMS, 10),
-        maxStringLength: parsePositiveInt(process.env.AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_STRING_LENGTH, 200),
+        maxDepth: this.config.payloadSummaryMaxDepth,
+        maxArrayItems: this.config.payloadSummaryMaxArrayItems,
+        maxStringLength: this.config.payloadSummaryMaxStringLength,
       }),
     });
 
@@ -37,9 +39,4 @@ export class RecordAuditableEventUseCase {
 
     return result;
   }
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const parsed = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

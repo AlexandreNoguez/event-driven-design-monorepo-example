@@ -13,11 +13,13 @@ import {
 import type { AuthenticatedUser } from '../../../domain/auth/authenticated-user';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import type { RequestWithUser } from './request-with-user';
+import { ApiGatewayConfigService } from '../../../infrastructure/config/api-gateway-config.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
+    private readonly config: ApiGatewayConfigService,
     @Inject(ACCESS_TOKEN_VERIFIER)
     private readonly accessTokenVerifier: AccessTokenVerifier,
   ) {}
@@ -66,7 +68,7 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   private isDevBypassEnabled(): boolean {
-    return (process.env.API_GATEWAY_AUTH_DEV_BYPASS ?? 'false').toLowerCase() === 'true';
+    return this.config.authDevBypassEnabled;
   }
 
   private createBypassUser(): AuthenticatedUser {

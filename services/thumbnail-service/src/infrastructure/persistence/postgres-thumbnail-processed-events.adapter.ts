@@ -4,6 +4,7 @@ import type {
   MarkThumbnailProcessedEventInput,
   ThumbnailProcessedEventsPort,
 } from '../../application/thumbnail/ports/thumbnail-processed-events.port';
+import { ThumbnailServiceConfigService } from '../config/thumbnail-service-config.service';
 
 @Injectable()
 export class PostgresThumbnailProcessedEventsAdapter
@@ -12,14 +13,9 @@ export class PostgresThumbnailProcessedEventsAdapter
   private readonly logger = new Logger(PostgresThumbnailProcessedEventsAdapter.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for thumbnail-service.');
-    }
-
+  constructor(config: ThumbnailServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

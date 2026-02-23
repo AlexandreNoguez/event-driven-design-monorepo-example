@@ -3,6 +3,7 @@ import jwt, { type JwtPayload } from 'jsonwebtoken';
 import jwkToPem from 'jwk-to-pem';
 import type { AccessTokenVerifier } from '../../application/auth/ports/access-token-verifier.port';
 import type { AuthenticatedUser, JwtAccessTokenClaims } from '../../domain/auth/authenticated-user';
+import { ApiGatewayConfigService } from '../config/api-gateway-config.service';
 
 interface JsonWebKey {
   kid?: string;
@@ -23,9 +24,11 @@ interface JwksResponse {
 export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
   private readonly jwksCache = new Map<string, { expiresAt: number; keys: JsonWebKey[] }>();
 
+  constructor(private readonly config: ApiGatewayConfigService) {}
+
   async verifyAccessToken(token: string): Promise<AuthenticatedUser> {
-    const issuer = this.requiredEnv('JWT_ISSUER_URL');
-    const audience = (process.env.JWT_AUDIENCE ?? '').trim() || undefined;
+    const issuer = this.requiredIssuer();
+    const audience = this.config.jwtAudience;
     const jwksUrl = this.resolveJwksUrl(issuer);
 
     const decoded = jwt.decode(token, { complete: true });
@@ -67,17 +70,16 @@ export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
     return this.toAuthenticatedUser(claims);
   }
 
-  private requiredEnv(name: string): string {
-    const value = process.env[name];
-    if (value && value.trim().length > 0) {
-      return value;
+  private requiredIssuer(): string {
+    const issuer = this.config.jwtIssuerUrl;
+    if (issuer) {
+      return issuer;
     }
-
-    throw new InternalServerErrorException(`Missing required environment variable: ${name}`);
+    throw new InternalServerErrorException('Missing required environment variable: JWT_ISSUER_URL');
   }
 
   private resolveJwksUrl(issuer: string): string {
-    const explicit = (process.env.JWT_JWKS_URL ?? '').trim();
+    const explicit = this.config.jwtJwksUrl;
     if (explicit) {
       return explicit;
     }
@@ -136,13 +138,7 @@ export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
   }
 
   private resolveJwksCacheTtlMs(): number {
-    const raw = process.env.JWT_JWKS_CACHE_TTL_MS;
-    if (!raw) {
-      return 5 * 60 * 1000;
-    }
-
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 5 * 60 * 1000;
+    return this.config.jwtJwksCacheTtlMs;
   }
 
   private toAuthenticatedUser(claims: JwtAccessTokenClaims): AuthenticatedUser {

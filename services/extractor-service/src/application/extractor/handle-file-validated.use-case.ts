@@ -29,6 +29,7 @@ import {
   IMAGE_METADATA_READER_PORT,
   type ImageMetadataReaderPort,
 } from './ports/image-metadata-reader.port';
+import { ExtractorServiceConfigService } from '../../infrastructure/config/extractor-service-config.service';
 
 @Injectable()
 export class HandleFileValidatedUseCase {
@@ -43,10 +44,11 @@ export class HandleFileValidatedUseCase {
     private readonly eventsPublisher: ExtractorEventsPublisherPort,
     @Inject(EXTRACTOR_PROCESSED_EVENTS_PORT)
     private readonly processedEvents: ExtractorProcessedEventsPort,
+    private readonly config: ExtractorServiceConfigService,
   ) {}
 
   async execute(event: FileValidatedEvent): Promise<{ skipped: boolean; publishedType?: string }> {
-    const consumerName = process.env.EXTRACTOR_SERVICE_CONSUMER_NAME ?? 'extractor:file-validated';
+    const consumerName = this.config.consumerName;
 
     if (await this.processedEvents.hasProcessedEvent(event.messageId, consumerName)) {
       this.logger.log(`Skipping already processed event ${event.messageId} (${consumerName}).`);
@@ -56,10 +58,8 @@ export class HandleFileValidatedUseCase {
     const objectStat = await this.objectStorage.statObject(event.payload.bucket, event.payload.objectKey);
     const buffer = await this.objectStorage.readObject(event.payload.bucket, event.payload.objectKey);
 
-    const includeSha256 = parseBoolean(process.env.EXTRACTOR_SERVICE_INCLUDE_SHA256, true);
-    const imageMetadataMimeTypes = parseImageMetadataMimeTypes(
-      process.env.EXTRACTOR_SERVICE_IMAGE_METADATA_MIME_TYPES,
-    );
+    const includeSha256 = parseBoolean(String(this.config.includeSha256), true);
+    const imageMetadataMimeTypes = parseImageMetadataMimeTypes(this.config.imageMetadataMimeTypesCsv);
 
     const sha256Checksum = includeSha256 ? this.computeSha256(buffer) : undefined;
     let imageMetadata;

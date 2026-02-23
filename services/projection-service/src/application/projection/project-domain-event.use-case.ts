@@ -4,6 +4,7 @@ import {
   type ProjectionProjectorPort,
 } from './ports/projection-projector.port';
 import type { ProjectableEventWithRoutingKey } from '../../domain/projection/projectable-event';
+import { ProjectionServiceConfigService } from '../../infrastructure/config/projection-service-config.service';
 
 @Injectable()
 export class ProjectDomainEventUseCase {
@@ -12,10 +13,11 @@ export class ProjectDomainEventUseCase {
   constructor(
     @Inject(PROJECTION_PROJECTOR_PORT)
     private readonly projector: ProjectionProjectorPort,
+    private readonly config: ProjectionServiceConfigService,
   ) {}
 
   async execute(input: ProjectableEventWithRoutingKey): Promise<{ applied: boolean }> {
-    const consumerName = process.env.PROJECTION_SERVICE_CONSUMER_NAME ?? 'projection:events';
+    const consumerName = this.config.consumerName;
     const result = await this.projector.projectEvent({
       ...input,
       consumerName,

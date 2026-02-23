@@ -4,20 +4,16 @@ import type {
   AuditRepositoryPort,
   StoreAuditableEventInput,
 } from '../../application/audit/ports/audit-repository.port';
+import { AuditServiceConfigService } from '../config/audit-service-config.service';
 
 @Injectable()
 export class PostgresAuditRepository implements AuditRepositoryPort, OnModuleDestroy {
   private readonly logger = new Logger(PostgresAuditRepository.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for audit-service.');
-    }
-
+  constructor(config: AuditServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

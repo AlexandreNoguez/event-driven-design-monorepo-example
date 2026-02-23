@@ -4,6 +4,7 @@ import type {
   ExtractorProcessedEventsPort,
   MarkExtractorProcessedEventInput,
 } from '../../application/extractor/ports/extractor-processed-events.port';
+import { ExtractorServiceConfigService } from '../config/extractor-service-config.service';
 
 @Injectable()
 export class PostgresExtractorProcessedEventsAdapter
@@ -12,14 +13,9 @@ export class PostgresExtractorProcessedEventsAdapter
   private readonly logger = new Logger(PostgresExtractorProcessedEventsAdapter.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for extractor-service.');
-    }
-
+  constructor(config: ExtractorServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

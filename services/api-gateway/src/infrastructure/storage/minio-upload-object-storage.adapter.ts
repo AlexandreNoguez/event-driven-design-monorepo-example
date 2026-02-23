@@ -8,22 +8,27 @@ import type {
   UploadObjectRef,
   UploadObjectStorage,
 } from '../../application/uploads/ports/upload-object-storage.port';
+import { ApiGatewayConfigService } from '../config/api-gateway-config.service';
 
 @Injectable()
 export class MinioUploadObjectStorageAdapter implements UploadObjectStorage {
-  private readonly client = new Client({
-    endPoint: process.env.MINIO_ENDPOINT ?? 'localhost',
-    port: parsePort(process.env.MINIO_API_PORT, 9000),
-    useSSL: (process.env.MINIO_USE_SSL ?? 'false').toLowerCase() === 'true',
-    accessKey: process.env.MINIO_ROOT_USER ?? 'minioadmin',
-    secretKey: process.env.MINIO_ROOT_PASSWORD ?? 'minioadmin',
-    region: process.env.S3_REGION ?? 'us-east-1',
-  });
+  private readonly client: Client;
+
+  constructor(private readonly config: ApiGatewayConfigService) {
+    this.client = new Client({
+      endPoint: config.minioEndpoint,
+      port: config.minioApiPort,
+      useSSL: config.minioUseSsl,
+      accessKey: config.minioRootUser,
+      secretKey: config.minioRootPassword,
+      region: config.s3Region,
+    });
+  }
 
   resolveUploadObjectRef(input: Pick<CreatePresignedUploadUrlInput, 'fileId' | 'fileName'>): UploadObjectRef {
     return {
-      bucket: process.env.MINIO_BUCKET_UPLOADS ?? 'uploads',
-      objectKey: buildObjectKey(input.fileId, input.fileName),
+      bucket: this.config.minioUploadsBucket,
+      objectKey: buildObjectKey(input.fileId, input.fileName, this.config.uploadObjectKeyPrefix),
     };
   }
 
@@ -31,7 +36,7 @@ export class MinioUploadObjectStorageAdapter implements UploadObjectStorage {
     input: CreatePresignedUploadUrlInput,
   ): Promise<CreatePresignedUploadUrlResult> {
     const { bucket, objectKey } = this.resolveUploadObjectRef(input);
-    const expiresSeconds = parsePositiveInt(process.env.API_GATEWAY_UPLOAD_PRESIGNED_EXPIRES_SECONDS, 900);
+    const expiresSeconds = this.config.presignedExpiresSeconds;
 
     const url = await this.client.presignedPutObject(bucket, objectKey, expiresSeconds);
 
@@ -65,8 +70,8 @@ export class MinioUploadObjectStorageAdapter implements UploadObjectStorage {
   }
 }
 
-function buildObjectKey(fileId: string, fileName: string): string {
-  const prefix = (process.env.UPLOAD_SERVICE_OBJECT_KEY_PREFIX ?? 'raw').trim() || 'raw';
+function buildObjectKey(fileId: string, fileName: string, prefixValue: string): string {
+  const prefix = prefixValue.trim() || 'raw';
   const safeName = sanitizeFileName(fileName);
   return `${prefix}/${fileId}/${safeName}`;
 }
@@ -80,16 +85,6 @@ function sanitizeFileName(fileName: string): string {
     .replace(/^-|-$/g, '');
 
   return normalized || 'file.bin';
-}
-
-function parsePort(raw: string | undefined, fallback: number): number {
-  const value = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const value = raw ? Number.parseInt(raw, 10) : fallback;
-  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function normalizeEtag(etag?: string): string | undefined {

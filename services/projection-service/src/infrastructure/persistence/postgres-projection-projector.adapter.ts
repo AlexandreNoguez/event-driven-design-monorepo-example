@@ -9,6 +9,7 @@ import type {
   ProjectEventInput,
   ProjectionProjectorPort,
 } from '../../application/projection/ports/projection-projector.port';
+import { ProjectionServiceConfigService } from '../config/projection-service-config.service';
 
 interface UploadsReadRow {
   validation_status: string;
@@ -22,14 +23,9 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
   private readonly logger = new Logger(PostgresProjectionProjectorAdapter.name);
   private readonly pool: Pool;
 
-  constructor() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL is required for projection-service.');
-    }
-
+  constructor(config: ProjectionServiceConfigService) {
     this.pool = new Pool({
-      connectionString: databaseUrl,
+      connectionString: config.databaseUrl,
       max: 10,
       idleTimeoutMillis: 10_000,
     });

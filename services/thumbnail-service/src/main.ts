@@ -2,17 +2,14 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ThumbnailServiceConfigService } from './infrastructure/config/thumbnail-service-config.service';
 
 const SERVICE_NAME = 'thumbnail-service';
-const PORT_ENV = 'THUMBNAIL_SERVICE_PORT';
-const DEFAULT_PORT = 3004;
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
-  const rawPort = process.env[PORT_ENV];
-  const parsedPort = rawPort ? Number.parseInt(rawPort, 10) : DEFAULT_PORT;
-  const port = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_PORT;
+  const config = app.get(ThumbnailServiceConfigService);
+  const port = config.port;
 
   await app.listen(port);
 

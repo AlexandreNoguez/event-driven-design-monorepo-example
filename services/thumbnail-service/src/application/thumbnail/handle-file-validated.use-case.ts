@@ -29,6 +29,7 @@ import {
   THUMBNAIL_PROCESSED_EVENTS_PORT,
   type ThumbnailProcessedEventsPort,
 } from './ports/thumbnail-processed-events.port';
+import { ThumbnailServiceConfigService } from '../../infrastructure/config/thumbnail-service-config.service';
 
 @Injectable()
 export class HandleFileValidatedUseCase {
@@ -43,17 +44,18 @@ export class HandleFileValidatedUseCase {
     private readonly eventsPublisher: ThumbnailEventsPublisherPort,
     @Inject(THUMBNAIL_PROCESSED_EVENTS_PORT)
     private readonly processedEvents: ThumbnailProcessedEventsPort,
+    private readonly config: ThumbnailServiceConfigService,
   ) {}
 
   async execute(event: FileValidatedEvent): Promise<{ skipped: boolean; publishedType?: string }> {
-    const consumerName = process.env.THUMBNAIL_SERVICE_CONSUMER_NAME ?? 'thumbnail:file-validated';
+    const consumerName = this.config.consumerName;
 
     if (await this.processedEvents.hasProcessedEvent(event.messageId, consumerName)) {
       this.logger.log(`Skipping already processed event ${event.messageId} (${consumerName}).`);
       return { skipped: true };
     }
 
-    const supportedMimeTypes = parseSupportedMimeTypes(process.env.THUMBNAIL_SERVICE_SUPPORTED_MIME_TYPES);
+    const supportedMimeTypes = parseSupportedMimeTypes(this.config.supportedMimeTypesCsv);
     if (!isThumbnailSupportedMime(event.payload.contentType, supportedMimeTypes)) {
       await this.processedEvents.markProcessedEvent({
         eventId: event.messageId,
@@ -69,11 +71,11 @@ export class HandleFileValidatedUseCase {
       return { skipped: true };
     }
 
-    const thumbnailBucket = process.env.MINIO_BUCKET_THUMBNAILS ?? 'thumbnails';
-    const objectKeyPrefix = process.env.THUMBNAIL_SERVICE_OBJECT_KEY_PREFIX ?? 'thumbnails';
-    const width = parsePositiveInt(process.env.THUMBNAIL_SERVICE_WIDTH, 320);
-    const height = parsePositiveInt(process.env.THUMBNAIL_SERVICE_HEIGHT, 320);
-    const webpQuality = parseWebpQuality(process.env.THUMBNAIL_SERVICE_WEBP_QUALITY, 82);
+    const thumbnailBucket = this.config.thumbnailsBucket;
+    const objectKeyPrefix = this.config.objectKeyPrefix;
+    const width = parsePositiveInt(String(this.config.width), 320);
+    const height = parsePositiveInt(String(this.config.height), 320);
+    const webpQuality = parseWebpQuality(String(this.config.webpQuality), 82);
 
     const source = await this.objectStorage.readObject(event.payload.bucket, event.payload.objectKey);
     const rendered = await this.imageProcessor.generateThumbnail({
