@@ -75,13 +75,13 @@
 ## 5) Serviços backend (NestJS)
 ### 5.1 api-gateway (HTTP/BFF)
 - [x] Criar serviço `api-gateway`
-- [ ] Integrar Keycloak (JWT validation)
-- [ ] Endpoints v0:
-  - [ ] `POST /uploads` (iniciar upload)
-  - [ ] `GET /uploads/:fileId/status`
-  - [ ] `GET /uploads` (minha lista / admin lista)
-  - [ ] `POST /admin/uploads/:fileId/reprocess` (admin)
-- [ ] Publicar commands no RabbitMQ (UploadRequested, ReprocessRequested)
+- [x] Integrar Keycloak (JWT validation)
+- [x] Endpoints v0:
+  - [x] `POST /uploads` (iniciar upload)
+  - [x] `GET /uploads/:fileId/status`
+  - [x] `GET /uploads` (minha lista / admin lista)
+  - [x] `POST /admin/uploads/:fileId/reprocess` (admin)
+- [x] Publicar commands no RabbitMQ (UploadRequested, ReprocessRequested)
 
 ### 5.2 upload-service
 - [x] Criar serviço `upload-service`

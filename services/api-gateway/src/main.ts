@@ -9,10 +9,12 @@ const DEFAULT_PORT = 3000;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors();
   const rawPort = process.env[PORT_ENV];
   const parsedPort = rawPort ? Number.parseInt(rawPort, 10) : DEFAULT_PORT;
   const port = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_PORT;
 
+  app.enableShutdownHooks();
   await app.listen(port);
 
   const logger = new Logger('Bootstrap');
