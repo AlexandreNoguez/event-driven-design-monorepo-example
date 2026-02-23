@@ -140,9 +140,9 @@
 
 ### 5.8 audit-service
 - [x] Criar serviço `audit-service`
-- [ ] Consumir todos eventos (`#`)
-- [ ] Persistir audit log imutável (tipo, occurredAt, correlationId, payload resumido)
-- [ ] Implementar idempotência (processed_events)
+- [x] Consumir todos eventos (`#`)
+- [x] Persistir audit log imutável (tipo, occurredAt, correlationId, payload resumido)
+- [x] Implementar idempotência (processed_events)
 
 ---
 

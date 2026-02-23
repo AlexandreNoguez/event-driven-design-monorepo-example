@@ -11,6 +11,14 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@event-pipeline/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@event-pipeline/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
     "incremental": true,
     "types": [
       "node"
