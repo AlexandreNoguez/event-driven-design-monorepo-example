@@ -1,0 +1,304 @@
+services:
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      API_GATEWAY_PORT: "3000"
+      API_GATEWAY_AUTH_DEV_BYPASS: ${API_GATEWAY_AUTH_DEV_BYPASS:-false}
+      JWT_ISSUER_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-event-pipeline}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-account}
+      JWT_JWKS_URL: ${JWT_JWKS_URL:-}
+      JWT_JWKS_CACHE_TTL_MS: ${JWT_JWKS_CACHE_TTL_MS:-300000}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      RABBITMQ_EXCHANGE_COMMANDS: ${RABBITMQ_EXCHANGE_COMMANDS:-domain.commands}
+      MINIO_ENDPOINT: minio
+      MINIO_API_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET_UPLOADS: ${MINIO_BUCKET_UPLOADS:-uploads}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      UPLOAD_SERVICE_OBJECT_KEY_PREFIX: ${UPLOAD_SERVICE_OBJECT_KEY_PREFIX:-raw}
+      API_GATEWAY_UPLOAD_PRESIGNED_EXPIRES_SECONDS: ${API_GATEWAY_UPLOAD_PRESIGNED_EXPIRES_SECONDS:-900}
+    ports:
+      - "${API_GATEWAY_PORT:-3000}:3000"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  upload-service:
+    build:
+      context: ..
+      dockerfile: services/upload-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      UPLOAD_SERVICE_PORT: "3002"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      RABBITMQ_EXCHANGE_EVENTS: ${RABBITMQ_EXCHANGE_EVENTS:-domain.events}
+      UPLOAD_SERVICE_COMMAND_QUEUE: ${UPLOAD_SERVICE_COMMAND_QUEUE:-q.upload.commands}
+      UPLOAD_SERVICE_COMMAND_PREFETCH: ${UPLOAD_SERVICE_COMMAND_PREFETCH:-10}
+      UPLOAD_SERVICE_OUTBOX_POLL_INTERVAL_MS: ${UPLOAD_SERVICE_OUTBOX_POLL_INTERVAL_MS:-2000}
+      UPLOAD_SERVICE_OUTBOX_BATCH_SIZE: ${UPLOAD_SERVICE_OUTBOX_BATCH_SIZE:-50}
+      MINIO_BUCKET_UPLOADS: ${MINIO_BUCKET_UPLOADS:-uploads}
+      UPLOAD_SERVICE_OBJECT_KEY_PREFIX: ${UPLOAD_SERVICE_OBJECT_KEY_PREFIX:-raw}
+    ports:
+      - "${UPLOAD_SERVICE_PORT:-3002}:3002"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  validator-service:
+    build:
+      context: ..
+      dockerfile: services/validator-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      VALIDATOR_SERVICE_PORT: "3003"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      RABBITMQ_EXCHANGE_EVENTS: ${RABBITMQ_EXCHANGE_EVENTS:-domain.events}
+      VALIDATOR_SERVICE_QUEUE: ${VALIDATOR_SERVICE_QUEUE:-q.validator}
+      VALIDATOR_SERVICE_PREFETCH: ${VALIDATOR_SERVICE_PREFETCH:-10}
+      VALIDATOR_SERVICE_CONSUMER_NAME: ${VALIDATOR_SERVICE_CONSUMER_NAME:-validator:file-uploaded}
+      VALIDATOR_SERVICE_MAX_SIZE_BYTES: ${VALIDATOR_SERVICE_MAX_SIZE_BYTES:-20971520}
+      VALIDATOR_SERVICE_ALLOWED_MIME_TYPES: ${VALIDATOR_SERVICE_ALLOWED_MIME_TYPES:-image/png,image/jpeg,image/webp,application/pdf}
+      VALIDATOR_SERVICE_SIGNATURE_READ_BYTES: ${VALIDATOR_SERVICE_SIGNATURE_READ_BYTES:-64}
+      MINIO_ENDPOINT: minio
+      MINIO_API_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_REGION: ${S3_REGION:-us-east-1}
+    ports:
+      - "${VALIDATOR_SERVICE_PORT:-3003}:3003"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  thumbnail-service:
+    build:
+      context: ..
+      dockerfile: services/thumbnail-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      THUMBNAIL_SERVICE_PORT: "3004"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      RABBITMQ_EXCHANGE_EVENTS: ${RABBITMQ_EXCHANGE_EVENTS:-domain.events}
+      THUMBNAIL_SERVICE_QUEUE: ${THUMBNAIL_SERVICE_QUEUE:-q.thumbnail}
+      THUMBNAIL_SERVICE_PREFETCH: ${THUMBNAIL_SERVICE_PREFETCH:-10}
+      THUMBNAIL_SERVICE_CONSUMER_NAME: ${THUMBNAIL_SERVICE_CONSUMER_NAME:-thumbnail:file-validated}
+      THUMBNAIL_SERVICE_SUPPORTED_MIME_TYPES: ${THUMBNAIL_SERVICE_SUPPORTED_MIME_TYPES:-image/png,image/jpeg,image/webp}
+      THUMBNAIL_SERVICE_WIDTH: ${THUMBNAIL_SERVICE_WIDTH:-320}
+      THUMBNAIL_SERVICE_HEIGHT: ${THUMBNAIL_SERVICE_HEIGHT:-320}
+      THUMBNAIL_SERVICE_WEBP_QUALITY: ${THUMBNAIL_SERVICE_WEBP_QUALITY:-82}
+      MINIO_BUCKET_THUMBNAILS: ${MINIO_BUCKET_THUMBNAILS:-thumbnails}
+      THUMBNAIL_SERVICE_OBJECT_KEY_PREFIX: ${THUMBNAIL_SERVICE_OBJECT_KEY_PREFIX:-thumbnails}
+      MINIO_ENDPOINT: minio
+      MINIO_API_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_REGION: ${S3_REGION:-us-east-1}
+    ports:
+      - "${THUMBNAIL_SERVICE_PORT:-3004}:3004"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  extractor-service:
+    build:
+      context: ..
+      dockerfile: services/extractor-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      EXTRACTOR_SERVICE_PORT: "3005"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      RABBITMQ_EXCHANGE_EVENTS: ${RABBITMQ_EXCHANGE_EVENTS:-domain.events}
+      EXTRACTOR_SERVICE_QUEUE: ${EXTRACTOR_SERVICE_QUEUE:-q.extractor}
+      EXTRACTOR_SERVICE_PREFETCH: ${EXTRACTOR_SERVICE_PREFETCH:-10}
+      EXTRACTOR_SERVICE_CONSUMER_NAME: ${EXTRACTOR_SERVICE_CONSUMER_NAME:-extractor:file-validated}
+      EXTRACTOR_SERVICE_INCLUDE_SHA256: ${EXTRACTOR_SERVICE_INCLUDE_SHA256:-true}
+      EXTRACTOR_SERVICE_IMAGE_METADATA_MIME_TYPES: ${EXTRACTOR_SERVICE_IMAGE_METADATA_MIME_TYPES:-image/png,image/jpeg,image/webp,image/gif}
+      MINIO_ENDPOINT: minio
+      MINIO_API_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_REGION: ${S3_REGION:-us-east-1}
+    ports:
+      - "${EXTRACTOR_SERVICE_PORT:-3005}:3005"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  projection-service:
+    build:
+      context: ..
+      dockerfile: services/projection-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      PROJECTION_SERVICE_PORT: "3001"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      PROJECTION_SERVICE_QUEUE: ${PROJECTION_SERVICE_QUEUE:-q.projection}
+      PROJECTION_SERVICE_PREFETCH: ${PROJECTION_SERVICE_PREFETCH:-50}
+      PROJECTION_SERVICE_CONSUMER_NAME: ${PROJECTION_SERVICE_CONSUMER_NAME:-projection:events}
+    ports:
+      - "${PROJECTION_SERVICE_PORT:-3001}:3001"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      NOTIFICATION_SERVICE_PORT: "3006"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      NOTIFICATION_SERVICE_QUEUE: ${NOTIFICATION_SERVICE_QUEUE:-q.notification}
+      NOTIFICATION_SERVICE_PREFETCH: ${NOTIFICATION_SERVICE_PREFETCH:-10}
+      NOTIFICATION_SERVICE_CONSUMER_NAME: ${NOTIFICATION_SERVICE_CONSUMER_NAME:-notification:events}
+      NOTIFICATION_DEFAULT_RECIPIENT_DOMAIN: ${NOTIFICATION_DEFAULT_RECIPIENT_DOMAIN:-event-pipeline.local}
+      NOTIFICATION_FALLBACK_TO: ${NOTIFICATION_FALLBACK_TO:-notifications@event-pipeline.local}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@event-pipeline.local}
+      MAILHOG_SMTP_HOST: mailhog
+      MAILHOG_SMTP_PORT: "1025"
+      NOTIFICATION_SMTP_SECURE: ${NOTIFICATION_SMTP_SECURE:-false}
+      NOTIFICATION_SMTP_USER: ${NOTIFICATION_SMTP_USER:-}
+      NOTIFICATION_SMTP_PASSWORD: ${NOTIFICATION_SMTP_PASSWORD:-}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-3006}:3006"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+  audit-service:
+    build:
+      context: ..
+      dockerfile: services/audit-service/Dockerfile
+      target: dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      AUDIT_SERVICE_PORT: "3007"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-event_pipeline}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
+      AUDIT_SERVICE_QUEUE: ${AUDIT_SERVICE_QUEUE:-q.audit}
+      AUDIT_SERVICE_PREFETCH: ${AUDIT_SERVICE_PREFETCH:-100}
+      AUDIT_SERVICE_CONSUMER_NAME: ${AUDIT_SERVICE_CONSUMER_NAME:-audit:events}
+      AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_DEPTH: ${AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_DEPTH:-3}
+      AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_ARRAY_ITEMS: ${AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_ARRAY_ITEMS:-10}
+      AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_STRING_LENGTH: ${AUDIT_SERVICE_PAYLOAD_SUMMARY_MAX_STRING_LENGTH:-200}
+    ports:
+      - "${AUDIT_SERVICE_PORT:-3007}:3007"
+    volumes:
+      - ..:/workspace
+      - workspace-node-modules:/workspace/node_modules
+      - workspace-pnpm-store:/pnpm/store
+    working_dir: /workspace
+    networks:
+      - event-pipeline-net
+
+volumes:
+  workspace-node-modules:
+  workspace-pnpm-store:

@@ -47,12 +47,12 @@ Motivação:
 
 ### Compose
 
-Arquivos planejados:
+Arquivos:
 
 - `infra/docker-compose.yml` (infra base)
 - `infra/docker-compose.dev.yml` (backends com hot reload)
 
-Scripts raiz planejados:
+Scripts raiz:
 
 - `pnpm docker:up` => stack completa dev (`infra + backends`)
 - `pnpm docker:up:infra` => somente infra
@@ -76,4 +76,12 @@ Scripts raiz planejados:
 - Padrão replicado para todos os backends (`api-gateway` + workers)
 - `.env.example` por backend criado
 - Scripts `start/dev` limpos (sem `source` manual)
-- Próximos blocos: Dockerfiles multi-stage + compose full dev
+- Dockerfiles multi-stage (`dev`/`build`/`prod`) criados para os 8 backends
+- `infra/docker-compose.dev.yml` criado para stack full dev (`infra + backends`) com hot reload
+- Scripts raiz adicionados/ajustados: `docker:up`, `docker:down`, `docker:up:infra`, `docker:down:infra`, `docker:logs`
+- Merge/estrutura do compose validado com `docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml config`
+
+## Próximos passos após esta fase
+
+- Avançar para o item `6` (catálogo de eventos/contratos v1)
+- Nos itens `8/9`, adicionar Dockerfiles/compose dos frontends (`user-web` e `admin-web`)

@@ -82,6 +82,12 @@ Este backlog foi organizado para execução em milestones curtas, com foco em po
 
 ## Milestone M1.5 — Padronização de Configuração e Docker (pré-item 6)
 
+Status atual:
+- `8.1` concluída (config validada por serviço com `@nestjs/config`)
+- `8.2` concluída para backends (`.env.example` por serviço); frontends ficam para itens `8/9`
+- `8.3` concluída (Dockerfiles multi-stage para backends)
+- `8.4` concluída (compose full dev + scripts raiz para stack completa)
+
 ### Issue 8.1: Padronizar config por serviço com validação (NestJS)
 - Labels: `architecture`, `backend`
 - Descrição: Adotar `@nestjs/config` com validação fail-fast e env files por serviço (`.env`, `.env.local`) para todos os backends.
@@ -111,6 +117,7 @@ Este backlog foi organizado para execução em milestones curtas, com foco em po
   - `pnpm docker:up` sobe stack local completa (infra + serviços backend)
   - `pnpm docker:up:infra` mantém opção de subir só infra
   - Healthchecks e dependências mínimas configuradas
+  - Compose validado com `docker compose ... config`
 
 ## Milestone M2 — Fluxo mínimo fim-a-fim (demo inicial)
 

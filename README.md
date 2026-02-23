@@ -45,7 +45,37 @@ pnpm install
 cp .env.example .env
 ```
 
+### Configuração por serviço (modo host / local)
+
+Os backends NestJS agora usam `.env` próprio por serviço (com `@nestjs/config` + validação fail-fast).
+
+Exemplos:
+
+```bash
+cp services/api-gateway/.env.example services/api-gateway/.env
+cp services/upload-service/.env.example services/upload-service/.env
+cp services/validator-service/.env.example services/validator-service/.env
+```
+
+Você pode repetir o mesmo padrão para os demais serviços em `services/*/.env.example`.
+
 ### Fluxo rápido para testar localmente (infra)
+
+```bash
+corepack enable
+corepack prepare pnpm@10.4.0 --activate
+pnpm install
+cp .env.example .env
+pnpm docker:up:infra
+```
+
+Para parar os containers:
+
+```bash
+pnpm docker:down:infra
+```
+
+### Fluxo rápido para subir stack completa (Docker dev: infra + backends)
 
 ```bash
 corepack enable
@@ -55,10 +85,10 @@ cp .env.example .env
 pnpm docker:up
 ```
 
-Para parar os containers:
+Logs da stack completa:
 
 ```bash
-pnpm docker:down
+pnpm docker:logs
 ```
 
 ### Scripts raiz
@@ -69,10 +99,14 @@ pnpm lint
 pnpm format
 pnpm test
 pnpm docker:up
+pnpm docker:up:infra
 pnpm docker:down
+pnpm docker:down:infra
+pnpm docker:logs
 ```
 
-> `docker:up` / `docker:down` dependem de `infra/docker-compose.yml`, que será criado na etapa de infraestrutura local.
+> `docker:up` sobe a stack dev completa (`infra/docker-compose.yml` + `infra/docker-compose.dev.yml`).
+> Use `docker:up:infra` se quiser subir somente a infraestrutura.
 
 ### Infra local (Docker Compose)
 
@@ -89,13 +123,13 @@ corepack enable
 corepack prepare pnpm@10.4.0 --activate
 pnpm install
 cp .env.example .env
-pnpm docker:up
+pnpm docker:up:infra
 ```
 
 Derrubar infraestrutura:
 
 ```bash
-pnpm docker:down
+pnpm docker:down:infra
 ```
 
 ### Portas e URLs locais
@@ -601,6 +635,9 @@ Status atual da fase:
 - Template de config validada com `@nestjs/config` implementado em `upload-service` e `validator-service`
 - Config/validação replicada para todos os backends (`api-gateway` + workers + upload-service)
 - `.env.example` por backend criado e scripts `start/dev` limpos (sem `source` manual)
-- Próximas etapas: Dockerfiles multi-stage e compose full dev
+- Dockerfiles multi-stage (`dev`/`build`/`prod`) criados para todos os backends
+- Compose full dev (`infra` + `backends`) criado em `infra/docker-compose.dev.yml`
+- Scripts raiz atualizados: `docker:up` (stack completa), `docker:up:infra`, `docker:down`, `docker:logs`
+- Próxima etapa: item `6` (catálogo de eventos/contratos v1); frontends entram no compose depois (itens `8/9`)
 
 ---

@@ -149,10 +149,10 @@
 - [x] Replicar padrão de config/validação para todos backends
 - [x] Criar `.env.example` por serviço/backend
 - [x] Limpar scripts `start/dev` (sem `source` manual)
-- [ ] Adicionar `Dockerfile` multi-stage (`dev`/`build`/`prod`) para cada backend
-- [ ] Criar compose full dev (`infra` + `backends`) com hot reload
-- [ ] Ajustar scripts raiz (`docker:up`, `docker:down`, `docker:up:infra`, logs)
-- [ ] Atualizar `README.md` com modo local (host) e modo Docker full stack
+- [x] Adicionar `Dockerfile` multi-stage (`dev`/`build`/`prod`) para cada backend
+- [x] Criar compose full dev (`infra` + `backends`) com hot reload
+- [x] Ajustar scripts raiz (`docker:up`, `docker:down`, `docker:up:infra`, logs)
+- [x] Atualizar `README.md` com modo local (host) e modo Docker full stack
 
 ---
 

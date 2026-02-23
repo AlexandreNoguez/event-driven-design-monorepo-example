@@ -1,0 +1,15 @@
+.git
+.gitignore
+node_modules
+.pnpm-store
+dist
+coverage
+.turbo
+.env
+.env.local
+.env.*.local
+services/*/.env
+services/*/.env.local
+apps/*/.env
+apps/*/.env.local
+*.log
