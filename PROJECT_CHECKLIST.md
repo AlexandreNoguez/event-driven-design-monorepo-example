@@ -118,18 +118,18 @@
 
 ### 5.6 projection-service (read model)
 - [x] Criar serviço `projection-service`
-- [ ] Consumir eventos:
-  - [ ] `FileUploaded.v1`
-  - [ ] `FileValidated.v1`
-  - [ ] `FileRejected.v1`
-  - [ ] `ThumbnailGenerated.v1`
-  - [ ] `MetadataExtracted.v1`
-  - [ ] `ProcessingCompleted.v1` (quando existir)
-- [ ] Atualizar tabelas read:
-  - [ ] status por etapa
-  - [ ] timeline por upload
+- [x] Consumir eventos:
+  - [x] `FileUploaded.v1`
+  - [x] `FileValidated.v1`
+  - [x] `FileRejected.v1`
+  - [x] `ThumbnailGenerated.v1`
+  - [x] `MetadataExtracted.v1`
+  - [x] `ProcessingCompleted.v1` (quando existir)
+- [x] Atualizar tabelas read:
+  - [x] status por etapa
+  - [x] timeline por upload
 - [ ] Expor API interna (opcional) ou acesso direto pelo gateway via DB
-- [ ] Implementar idempotência (processed_events)
+- [x] Implementar idempotência (processed_events)
 
 ### 5.7 notification-service (Mailhog)
 - [x] Criar serviço `notification-service`
