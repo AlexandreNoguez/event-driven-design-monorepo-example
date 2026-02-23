@@ -80,6 +80,38 @@ Este backlog foi organizado para execução em milestones curtas, com foco em po
   - Tipos compartilhados consumíveis por backend e frontend
   - Convenção de nomes de exchange/routing key centralizada
 
+## Milestone M1.5 — Padronização de Configuração e Docker (pré-item 6)
+
+### Issue 8.1: Padronizar config por serviço com validação (NestJS)
+- Labels: `architecture`, `backend`
+- Descrição: Adotar `@nestjs/config` com validação fail-fast e env files por serviço (`.env`, `.env.local`) para todos os backends.
+- Critérios de aceite:
+  - `upload-service` e `validator-service` servem como template inicial
+  - Todos os backends carregam `.env` local sem `source` manual
+  - Erros de configuração são explícitos no bootstrap
+
+### Issue 8.2: Criar `.env.example` por serviço/app
+- Labels: `architecture`, `documentation`
+- Descrição: Criar exemplos de variáveis por serviço/backend (e depois por frontend), reduzindo dependência do `.env` raiz.
+- Critérios de aceite:
+  - Cada backend possui `services/<name>/.env.example`
+  - `README` documenta fluxo de cópia e override
+
+### Issue 8.3: Adicionar Dockerfiles multi-stage para backends
+- Labels: `infra`, `backend`
+- Descrição: Criar `Dockerfile` único por backend com stages `dev`, `build` e `prod`.
+- Critérios de aceite:
+  - Hot reload em dev via `target: dev`
+  - Imagem de produção enxuta via `target: prod`
+
+### Issue 8.4: Compose full dev (infra + backends) com hot reload
+- Labels: `infra`, `architecture`
+- Descrição: Criar compose de desenvolvimento completo para subir infraestrutura e backends com um único comando.
+- Critérios de aceite:
+  - `pnpm docker:up` sobe stack local completa (infra + serviços backend)
+  - `pnpm docker:up:infra` mantém opção de subir só infra
+  - Healthchecks e dependências mínimas configuradas
+
 ## Milestone M2 — Fluxo mínimo fim-a-fim (demo inicial)
 
 ### Issue 9: Implementar `service:api-gateway` v0

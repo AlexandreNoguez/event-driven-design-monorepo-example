@@ -144,6 +144,16 @@
 - [x] Persistir audit log imutável (tipo, occurredAt, correlationId, payload resumido)
 - [x] Implementar idempotência (processed_events)
 
+### 5.9 Padronização de configuração e Docker (pré-item 6)
+- [x] Config por serviço (NestJS) com `@nestjs/config` + validação (template em `upload-service` e `validator-service`)
+- [ ] Replicar padrão de config/validação para todos backends
+- [ ] Criar `.env.example` por serviço/backend
+- [ ] Limpar scripts `start/dev` (sem `source` manual)
+- [ ] Adicionar `Dockerfile` multi-stage (`dev`/`build`/`prod`) para cada backend
+- [ ] Criar compose full dev (`infra` + `backends`) com hot reload
+- [ ] Ajustar scripts raiz (`docker:up`, `docker:down`, `docker:up:infra`, logs)
+- [ ] Atualizar `README.md` com modo local (host) e modo Docker full stack
+
 ---
 
 ## 6) Eventos e contratos (v1)
