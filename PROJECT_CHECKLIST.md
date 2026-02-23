@@ -146,9 +146,9 @@
 
 ### 5.9 Padronização de configuração e Docker (pré-item 6)
 - [x] Config por serviço (NestJS) com `@nestjs/config` + validação (template em `upload-service` e `validator-service`)
-- [ ] Replicar padrão de config/validação para todos backends
-- [ ] Criar `.env.example` por serviço/backend
-- [ ] Limpar scripts `start/dev` (sem `source` manual)
+- [x] Replicar padrão de config/validação para todos backends
+- [x] Criar `.env.example` por serviço/backend
+- [x] Limpar scripts `start/dev` (sem `source` manual)
 - [ ] Adicionar `Dockerfile` multi-stage (`dev`/`build`/`prod`) para cada backend
 - [ ] Criar compose full dev (`infra` + `backends`) com hot reload
 - [ ] Ajustar scripts raiz (`docker:up`, `docker:down`, `docker:up:infra`, logs)

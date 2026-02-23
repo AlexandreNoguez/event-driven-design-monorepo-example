@@ -599,7 +599,8 @@ Documento de acompanhamento:
 Status atual da fase:
 
 - Template de config validada com `@nestjs/config` implementado em `upload-service` e `validator-service`
-- `.env.example` por serviço criado para esses dois serviços
-- Próximas etapas: replicar para os demais backends, Dockerfiles multi-stage e compose full dev
+- Config/validação replicada para todos os backends (`api-gateway` + workers + upload-service)
+- `.env.example` por backend criado e scripts `start/dev` limpos (sem `source` manual)
+- Próximas etapas: Dockerfiles multi-stage e compose full dev
 
 ---

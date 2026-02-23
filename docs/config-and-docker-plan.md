@@ -69,3 +69,11 @@ Scripts raiz planejados:
 6. Compose full dev (`infra` + `backends`)
 7. Atualizar `README.md`
 8. Depois (itens 8/9), adicionar Dockerfiles/compose dos frontends
+
+## Status atual
+
+- `upload-service` e `validator-service` usados como template de `@nestjs/config` + validação
+- Padrão replicado para todos os backends (`api-gateway` + workers)
+- `.env.example` por backend criado
+- Scripts `start/dev` limpos (sem `source` manual)
+- Próximos blocos: Dockerfiles multi-stage + compose full dev
