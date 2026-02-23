@@ -1,0 +1,17 @@
+{
+  "messageId": "0f0f6f9a-6f8d-4f68-a00e-111111111111",
+  "kind": "command",
+  "type": "UploadRequested.v1",
+  "occurredAt": "2026-02-23T20:50:00.000Z",
+  "correlationId": "6dbebf38-4f4c-4f6f-bd34-222222222222",
+  "producer": "api-gateway",
+  "version": 1,
+  "payload": {
+    "fileId": "file_smoke_001",
+    "fileName": "smoke.png",
+    "contentType": "image/png",
+    "sizeBytes": 68,
+    "userId": "demo-user",
+    "tenantId": "local"
+  }
+}

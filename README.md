@@ -629,6 +629,7 @@ Antes de avançar no item `6` (catálogo de eventos/contratos), foi aberta uma f
 Documento de acompanhamento:
 
 - `docs/config-and-docker-plan.md`
+- `docs/events.md` (catalogo v1 de commands/events + exemplos JSON)
 
 Status atual da fase:
 

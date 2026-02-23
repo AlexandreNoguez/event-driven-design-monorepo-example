@@ -90,6 +90,7 @@ Regras:
 Referencia em codigo:
 
 - `EVENT_VERSIONING_STRATEGY` em `packages/shared/src/standards.ts`
+- Catalogo v1 e exemplos JSON: `docs/events.md`
 
 ## 4. Padrao de logs (JSON) com correlationId
 

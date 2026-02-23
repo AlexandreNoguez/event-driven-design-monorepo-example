@@ -1,0 +1,32 @@
+{
+  "messageId": "6f6f6f9a-6f8d-4f68-a00e-999999999999",
+  "kind": "event",
+  "type": "MetadataExtracted.v1",
+  "occurredAt": "2026-02-23T20:50:07.100Z",
+  "correlationId": "6dbebf38-4f4c-4f6f-bd34-222222222222",
+  "causationId": "3f3f6f9a-6f8d-4f68-a00e-666666666666",
+  "producer": "extractor-service",
+  "version": 1,
+  "payload": {
+    "fileId": "file_smoke_001",
+    "userId": "demo-user",
+    "tenantId": "local",
+    "metadata": {
+      "contentType": "image/png",
+      "sizeBytes": 68,
+      "bucket": "uploads",
+      "objectKey": "raw/file_smoke_001/smoke.png",
+      "validatorChecksum": "md5:4f7c2b1e8f5b1234567890abcdef1234",
+      "extractedAt": "2026-02-23T20:50:07.050Z",
+      "storageEtag": "4f7c2b1e8f5b1234567890abcdef1234",
+      "checksumSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "image": {
+        "width": 1,
+        "height": 1,
+        "format": "png",
+        "colorSpace": "srgb",
+        "hasAlpha": true
+      }
+    }
+  }
+}

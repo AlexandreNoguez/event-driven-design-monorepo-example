@@ -157,17 +157,17 @@
 ---
 
 ## 6) Eventos e contratos (v1)
-- [ ] Definir (type + routing key + payload) para:
-  - [ ] `UploadRequested.v1` (command)
-  - [ ] `FileUploaded.v1`
-  - [ ] `FileValidated.v1`
-  - [ ] `FileRejected.v1`
-  - [ ] `ThumbnailGenerated.v1`
-  - [ ] `MetadataExtracted.v1`
-  - [ ] `ProcessingCompleted.v1`
-  - [ ] `ReprocessFileRequested.v1` (command)
-- [ ] Documentar exemplos JSON para cada evento/command
-- [ ] Definir regras de compatibilidade e evolução (.v2)
+- [x] Definir (type + routing key + payload) para:
+  - [x] `UploadRequested.v1` (command)
+  - [x] `FileUploaded.v1`
+  - [x] `FileValidated.v1`
+  - [x] `FileRejected.v1`
+  - [x] `ThumbnailGenerated.v1`
+  - [x] `MetadataExtracted.v1`
+  - [x] `ProcessingCompleted.v1`
+  - [x] `ReprocessFileRequested.v1` (command)
+- [x] Documentar exemplos JSON para cada evento/command
+- [x] Definir regras de compatibilidade e evolução (.v2)
 
 ---
 

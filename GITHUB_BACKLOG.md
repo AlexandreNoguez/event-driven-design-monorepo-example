@@ -52,6 +52,12 @@ Este backlog foi organizado para execução em milestones curtas, com foco em po
 
 ## Milestone M1 — Infra local e contratos v1
 
+Status atual:
+- `5` concluída (infra local via Docker Compose)
+- `6` concluída (bootstrap MinIO + Keycloak)
+- `7` concluída (`docs/events.md` + exemplos JSON + regras `.v2`)
+- `8` concluída (`packages/shared` com contratos/envelope/naming)
+
 ### Issue 5: Subir infraestrutura local via Docker Compose
 - Labels: `infra`
 - Descrição: Configurar `infra/docker-compose.yml` com Postgres, RabbitMQ, MinIO, Keycloak e Mailhog.

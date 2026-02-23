@@ -1,0 +1,22 @@
+{
+  "messageId": "7f7f6f9a-6f8d-4f68-a00e-aaaaaaaaaaaa",
+  "kind": "event",
+  "type": "ProcessingCompleted.v1",
+  "occurredAt": "2026-02-23T20:50:08.000Z",
+  "correlationId": "6dbebf38-4f4c-4f6f-bd34-222222222222",
+  "causationId": "6f6f6f9a-6f8d-4f68-a00e-999999999999",
+  "producer": "processing-completor",
+  "version": 1,
+  "payload": {
+    "fileId": "file_smoke_001",
+    "status": "completed",
+    "completedSteps": [
+      "upload",
+      "validation",
+      "thumbnail",
+      "metadata"
+    ],
+    "userId": "demo-user",
+    "tenantId": "local"
+  }
+}
