@@ -201,9 +201,9 @@ export const MESSAGE_CATALOG_V1: Record<MessageTypeV1, MessageCatalogEntryV1> = 
     type: 'ProcessingCompleted.v1',
     exchange: MESSAGE_EXCHANGES.events,
     routingKey: EVENT_ROUTING_KEYS_V1['ProcessingCompleted.v1'],
-    producer: 'processing-completor (planned)',
+    producer: 'projection-service',
     consumers: ['projection-service', 'notification-service', 'audit-service'],
-    status: 'planned',
+    status: 'implemented',
   },
 };
 

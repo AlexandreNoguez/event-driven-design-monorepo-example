@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 const DEFAULTS = {
   port: 3001,
   rabbitmqUrl: 'amqp://event:event@localhost:5672',
+  rabbitmqEventsExchange: 'domain.events',
   queue: 'q.projection',
   prefetch: 50,
   consumerName: 'projection:events',
@@ -36,6 +37,10 @@ export class ProjectionServiceConfigService {
     return this.config.get<string>('PROJECTION_SERVICE_QUEUE', DEFAULTS.queue);
   }
 
+  get rabbitmqEventsExchange(): string {
+    return this.config.get<string>('RABBITMQ_EXCHANGE_EVENTS', DEFAULTS.rabbitmqEventsExchange);
+  }
+
   get prefetch(): number {
     return this.config.get<number>('PROJECTION_SERVICE_PREFETCH', DEFAULTS.prefetch);
   }
@@ -52,6 +57,8 @@ export function validateProjectionServiceEnvironment(
   env.PROJECTION_SERVICE_PORT = toPositiveInt(raw.PROJECTION_SERVICE_PORT, DEFAULTS.port, 'PROJECTION_SERVICE_PORT');
   env.DATABASE_URL = requiredString(raw.DATABASE_URL, 'DATABASE_URL');
   env.RABBITMQ_URL = optionalString(raw.RABBITMQ_URL) ?? DEFAULTS.rabbitmqUrl;
+  env.RABBITMQ_EXCHANGE_EVENTS =
+    optionalString(raw.RABBITMQ_EXCHANGE_EVENTS) ?? DEFAULTS.rabbitmqEventsExchange;
   env.PROJECTION_SERVICE_QUEUE = optionalString(raw.PROJECTION_SERVICE_QUEUE) ?? DEFAULTS.queue;
   env.PROJECTION_SERVICE_PREFETCH = toPositiveInt(
     raw.PROJECTION_SERVICE_PREFETCH,

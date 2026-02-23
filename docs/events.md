@@ -19,7 +19,7 @@ Referências em código:
 | event | `FileRejected.v1` | `domain.events` | `files.rejected.v1` | `validator-service` | `projection-service`, `notification-service`, `audit-service` | implemented |
 | event | `ThumbnailGenerated.v1` | `domain.events` | `thumbnails.generated.v1` | `thumbnail-service` | `projection-service`, `audit-service` | implemented |
 | event | `MetadataExtracted.v1` | `domain.events` | `metadata.extracted.v1` | `extractor-service` | `projection-service`, `audit-service` | implemented |
-| event | `ProcessingCompleted.v1` | `domain.events` | `processing.completed.v1` | `processing-completor` (planned) | `projection-service`, `notification-service`, `audit-service` | planned |
+| event | `ProcessingCompleted.v1` | `domain.events` | `processing.completed.v1` | `projection-service` | `projection-service`, `notification-service`, `audit-service` | implemented |
 
 ## 2. Contratos v1 (payload mínimo)
 
@@ -110,7 +110,7 @@ Observação:
 
 ### 2.8 `ProcessingCompleted.v1`
 
-Payload mínimo (planejado):
+Payload mínimo:
 
 - `fileId: string`
 - `status: "completed" | "failed"`
@@ -165,6 +165,5 @@ Mudanças breaking, por exemplo:
 
 ## 5. Status do fluxo fim-a-fim (MVP atual)
 
-- O fluxo implementado atualmente publica até `ThumbnailGenerated.v1` e `MetadataExtracted.v1`.
-- `ProcessingCompleted.v1` já está catalogado, mas o publisher ainda é planejado.
-- Por isso, o primeiro smoke-test "completo" (com conclusão do processamento) deve ser executado após a implementação desse publisher.
+- O fluxo MVP atual publica `ProcessingCompleted.v1` a partir do `projection-service` quando o read model detecta conclusão (`thumbnail` + `metadata` concluídos).
+- Este publisher é **direto** (sem outbox local no `projection-service`); a evolução para outbox/retry dedicado entra no item `7`.

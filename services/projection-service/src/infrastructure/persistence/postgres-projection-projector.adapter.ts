@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
+import type { ProcessingCompletedPayload } from '@event-pipeline/shared';
 import {
   buildTimelineSummary,
   getEventFileId,
@@ -12,6 +13,9 @@ import type {
 import { ProjectionServiceConfigService } from '../config/projection-service-config.service';
 
 interface UploadsReadRow {
+  file_id: string;
+  user_id: string | null;
+  tenant_id: string | null;
   validation_status: string;
   thumbnail_status: string;
   metadata_status: string;
@@ -41,7 +45,10 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
     await this.pool.end();
   }
 
-  async projectEvent(input: ProjectEventInput): Promise<{ applied: boolean }> {
+  async projectEvent(input: ProjectEventInput): Promise<{
+    applied: boolean;
+    processingCompletedSignal?: ProcessingCompletedPayload;
+  }> {
     const client = await this.pool.connect();
 
     try {
@@ -55,10 +62,11 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
 
       await this.ensureUploadReadRow(client, input.event);
       await this.applyEventProjection(client, input.event);
+      const processingCompletedSignal = await this.maybeBuildProcessingCompletedSignal(client, input.event);
       await this.upsertTimeline(client, input.event, input.routingKey);
 
       await client.query('COMMIT');
-      return { applied: true };
+      return { applied: true, processingCompletedSignal };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -555,5 +563,55 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
       `,
       [fileId, nextOverallStatus],
     );
+  }
+
+  private async maybeBuildProcessingCompletedSignal(
+    client: PoolClient,
+    event: ProjectableDomainEvent,
+  ): Promise<ProcessingCompletedPayload | undefined> {
+    if (event.type === 'ProcessingCompleted.v1' || event.type === 'FileRejected.v1') {
+      return undefined;
+    }
+
+    const result = await client.query<UploadsReadRow>(
+      `
+        select
+          file_id,
+          user_id,
+          tenant_id,
+          validation_status,
+          thumbnail_status,
+          metadata_status,
+          overall_status
+        from projection_service.uploads_read
+        where file_id = $1
+      `,
+      [getEventFileId(event)],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return undefined;
+    }
+
+    if (row.overall_status !== 'completed') {
+      return undefined;
+    }
+
+    if (
+      row.validation_status !== 'completed' ||
+      row.thumbnail_status !== 'completed' ||
+      row.metadata_status !== 'completed'
+    ) {
+      return undefined;
+    }
+
+    return {
+      fileId: row.file_id,
+      userId: row.user_id ?? undefined,
+      tenantId: row.tenant_id ?? undefined,
+      status: 'completed',
+      completedSteps: ['upload', 'validation', 'thumbnail', 'metadata'],
+    };
   }
 }
