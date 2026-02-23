@@ -580,4 +580,26 @@ Exemplos atuais:
 
 4. Fechar lista oficial de eventos v1 e payloads mínimos
 
+## 13.1) Fase pré-item 6 (configuração e Docker)
+
+Antes de avançar no item `6` (catálogo de eventos/contratos), foi aberta uma fase de padronização para deixar o projeto mais consistente para portfólio e operação local:
+
+1. Config por serviço (`upload-service` + `validator-service`) com `@nestjs/config` + validação
+2. Replicar padrão para demais backends
+3. Criar `.env.example` por serviço/backend
+4. Limpar scripts `start/dev` (sem `source` manual)
+5. Adicionar `Dockerfile` multi-stage por backend (`dev`/`build`/`prod`)
+6. Criar compose full dev (`infra` + `backends`) para subir a stack completa com um comando
+7. Atualizar README com fluxo local (host) e fluxo Docker full stack
+
+Documento de acompanhamento:
+
+- `docs/config-and-docker-plan.md`
+
+Status atual da fase:
+
+- Template de config validada com `@nestjs/config` implementado em `upload-service` e `validator-service`
+- `.env.example` por serviço criado para esses dois serviços
+- Próximas etapas: replicar para os demais backends, Dockerfiles multi-stage e compose full dev
+
 ---
