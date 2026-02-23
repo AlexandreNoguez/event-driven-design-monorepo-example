@@ -85,12 +85,12 @@
 
 ### 5.2 upload-service
 - [x] Criar serviço `upload-service`
-- [ ] Implementar command handler `UploadRequested`
+- [x] Implementar command handler `UploadRequested`
 - [ ] Upload flow (escolher 1):
   - [ ] Multipart via gateway → upload-service → MinIO
   - [ ] Presigned URL MinIO (recomendado) + confirmação
-- [ ] Persistir `files` + `outbox_events` (mesma transação)
-- [ ] Publicar `FileUploaded.v1` via Outbox Publisher
+- [x] Persistir `files` + `outbox_events` (mesma transação)
+- [x] Publicar `FileUploaded.v1` via Outbox Publisher
 
 ### 5.3 validator-service
 - [x] Criar serviço `validator-service`
