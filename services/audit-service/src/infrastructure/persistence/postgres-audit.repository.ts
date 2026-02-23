@@ -78,7 +78,7 @@ export class PostgresAuditRepository implements AuditRepositoryPort, OnModuleDes
       ],
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   private async insertAuditEvent(client: PoolClient, input: StoreAuditableEventInput): Promise<void> {

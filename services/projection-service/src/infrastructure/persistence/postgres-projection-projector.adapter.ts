@@ -93,7 +93,7 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
       ],
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   private async ensureUploadReadRow(client: PoolClient, event: ProjectableDomainEvent): Promise<void> {
