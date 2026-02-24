@@ -166,4 +166,4 @@ Mudanças breaking, por exemplo:
 ## 5. Status do fluxo fim-a-fim (MVP atual)
 
 - O fluxo MVP atual publica `ProcessingCompleted.v1` a partir do `projection-service` quando o read model detecta conclusão (`thumbnail` + `metadata` concluídos).
-- Este publisher é **direto** (sem outbox local no `projection-service`); a evolução para outbox/retry dedicado entra no item `7`.
+- O `projection-service` agora usa `outbox_events` + poller para publicar `ProcessingCompleted.v1` após a transação da projeção (mais robusto para demo e evolução do item `7`).

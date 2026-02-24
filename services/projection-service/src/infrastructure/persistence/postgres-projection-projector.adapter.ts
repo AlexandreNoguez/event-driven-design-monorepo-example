@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
-import type { ProcessingCompletedPayload } from '@event-pipeline/shared';
+import {
+  createEnvelope,
+  EVENT_ROUTING_KEYS_V1,
+  type DomainEventV1,
+} from '@event-pipeline/shared';
 import {
   buildTimelineSummary,
   getEventFileId,
@@ -10,6 +14,10 @@ import type {
   ProjectEventInput,
   ProjectionProjectorPort,
 } from '../../application/projection/ports/projection-projector.port';
+import type {
+  ProjectionOutboxPendingEvent,
+  ProjectionOutboxRepositoryPort,
+} from '../../application/projection/ports/projection-outbox-repository.port';
 import { ProjectionServiceConfigService } from '../config/projection-service-config.service';
 
 interface UploadsReadRow {
@@ -22,8 +30,16 @@ interface UploadsReadRow {
   overall_status: string;
 }
 
+interface ProjectionOutboxRow {
+  event_id: string;
+  routing_key: string;
+  payload: unknown;
+}
+
 @Injectable()
-export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPort, OnModuleDestroy {
+export class PostgresProjectionProjectorAdapter
+  implements ProjectionProjectorPort, ProjectionOutboxRepositoryPort, OnModuleDestroy
+{
   private readonly logger = new Logger(PostgresProjectionProjectorAdapter.name);
   private readonly pool: Pool;
 
@@ -45,10 +61,7 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
     await this.pool.end();
   }
 
-  async projectEvent(input: ProjectEventInput): Promise<{
-    applied: boolean;
-    processingCompletedSignal?: ProcessingCompletedPayload;
-  }> {
+  async projectEvent(input: ProjectEventInput): Promise<{ applied: boolean }> {
     const client = await this.pool.connect();
 
     try {
@@ -62,17 +75,70 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
 
       await this.ensureUploadReadRow(client, input.event);
       await this.applyEventProjection(client, input.event);
-      const processingCompletedSignal = await this.maybeBuildProcessingCompletedSignal(client, input.event);
+      await this.maybeInsertProcessingCompletedOutboxEvent(client, input.event);
       await this.upsertTimeline(client, input.event, input.routingKey);
 
       await client.query('COMMIT');
-      return { applied: true, processingCompletedSignal };
+      return { applied: true };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
     }
+  }
+
+  async findPendingOutboxEvents(limit: number): Promise<ProjectionOutboxPendingEvent[]> {
+    const result = await this.pool.query<ProjectionOutboxRow>(
+      `
+        select event_id, routing_key, payload
+        from projection_service.outbox_events
+        where publish_status = 'pending'
+        order by created_at asc
+        limit $1
+      `,
+      [limit],
+    );
+
+    return result.rows
+      .map((row) => {
+        if (!row.payload || typeof row.payload !== 'object') {
+          return undefined;
+        }
+
+        return {
+          eventId: row.event_id,
+          routingKey: row.routing_key,
+          envelope: row.payload as ProjectionOutboxPendingEvent['envelope'],
+        };
+      })
+      .filter((row): row is ProjectionOutboxPendingEvent => row !== undefined);
+  }
+
+  async markOutboxEventPublished(eventId: string): Promise<void> {
+    await this.pool.query(
+      `
+        update projection_service.outbox_events
+        set publish_status = 'published',
+            published_at = now(),
+            attempt_count = attempt_count + 1,
+            last_error = null
+        where event_id = $1
+      `,
+      [eventId],
+    );
+  }
+
+  async markOutboxEventPublishFailed(eventId: string, errorMessage: string): Promise<void> {
+    await this.pool.query(
+      `
+        update projection_service.outbox_events
+        set attempt_count = attempt_count + 1,
+            last_error = left($2, 1000)
+        where event_id = $1
+      `,
+      [eventId, errorMessage],
+    );
   }
 
   private async insertProcessedEvent(client: PoolClient, input: ProjectEventInput): Promise<boolean> {
@@ -565,12 +631,12 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
     );
   }
 
-  private async maybeBuildProcessingCompletedSignal(
+  private async maybeInsertProcessingCompletedOutboxEvent(
     client: PoolClient,
     event: ProjectableDomainEvent,
-  ): Promise<ProcessingCompletedPayload | undefined> {
+  ): Promise<void> {
     if (event.type === 'ProcessingCompleted.v1' || event.type === 'FileRejected.v1') {
-      return undefined;
+      return;
     }
 
     const result = await client.query<UploadsReadRow>(
@@ -591,11 +657,11 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
 
     const row = result.rows[0];
     if (!row) {
-      return undefined;
+      return;
     }
 
     if (row.overall_status !== 'completed') {
-      return undefined;
+      return;
     }
 
     if (
@@ -603,15 +669,62 @@ export class PostgresProjectionProjectorAdapter implements ProjectionProjectorPo
       row.thumbnail_status !== 'completed' ||
       row.metadata_status !== 'completed'
     ) {
-      return undefined;
+      return;
     }
 
-    return {
+    const payload: DomainEventV1<'ProcessingCompleted.v1'>['payload'] = {
       fileId: row.file_id,
       userId: row.user_id ?? undefined,
       tenantId: row.tenant_id ?? undefined,
       status: 'completed',
       completedSteps: ['upload', 'validation', 'thumbnail', 'metadata'],
     };
+
+    const outboxEventId = `${row.file_id}:${event.correlationId}:ProcessingCompleted.v1`;
+    const outboxEvent = createEnvelope({
+      messageId: outboxEventId,
+      kind: 'event',
+      type: 'ProcessingCompleted.v1',
+      producer: 'projection-service',
+      payload,
+      correlationId: event.correlationId,
+      causationId: event.messageId,
+    });
+
+    const headers = {
+      kind: outboxEvent.kind,
+      type: outboxEvent.type,
+      version: outboxEvent.version,
+      correlationId: outboxEvent.correlationId,
+      causationId: outboxEvent.causationId ?? null,
+      producer: outboxEvent.producer,
+    };
+
+    await client.query(
+      `
+        insert into projection_service.outbox_events (
+          event_id,
+          aggregate_type,
+          aggregate_id,
+          event_type,
+          routing_key,
+          payload,
+          headers,
+          occurred_at
+        )
+        values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::timestamptz)
+        on conflict (event_id) do nothing
+      `,
+      [
+        outboxEvent.messageId,
+        'file',
+        payload.fileId,
+        outboxEvent.type,
+        EVENT_ROUTING_KEYS_V1['ProcessingCompleted.v1'],
+        JSON.stringify(outboxEvent),
+        JSON.stringify(headers),
+        outboxEvent.occurredAt,
+      ],
+    );
   }
 }

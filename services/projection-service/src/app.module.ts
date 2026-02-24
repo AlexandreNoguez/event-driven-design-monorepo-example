@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { PublishProjectionOutboxBatchService } from './application/projection/publish-projection-outbox-batch.service';
 import { ProjectDomainEventUseCase } from './application/projection/project-domain-event.use-case';
 import { PROJECTION_EVENTS_PUBLISHER_PORT } from './application/projection/ports/projection-events-publisher.port';
+import { PROJECTION_OUTBOX_REPOSITORY_PORT } from './application/projection/ports/projection-outbox-repository.port';
 import { PROJECTION_PROJECTOR_PORT } from './application/projection/ports/projection-projector.port';
 import { ServiceInfoQuery } from './application/system/service-info.query';
 import { RabbitMqProjectionEventsPublisherAdapter } from './infrastructure/messaging/rabbitmq-projection-events-publisher.adapter';
@@ -13,6 +15,7 @@ import {
 } from './infrastructure/config/projection-service-config.service';
 import { AppController } from './presentation/http/app.controller';
 import { RabbitMqProjectionConsumerService } from './presentation/messaging/rabbitmq-projection-consumer.service';
+import { ProjectionOutboxPollerService } from './presentation/workers/projection-outbox-poller.service';
 
 @Module({
   imports: [
@@ -34,11 +37,17 @@ import { RabbitMqProjectionConsumerService } from './presentation/messaging/rabb
       useExisting: PostgresProjectionProjectorAdapter,
     },
     {
+      provide: PROJECTION_OUTBOX_REPOSITORY_PORT,
+      useExisting: PostgresProjectionProjectorAdapter,
+    },
+    {
       provide: PROJECTION_EVENTS_PUBLISHER_PORT,
       useExisting: RabbitMqProjectionEventsPublisherAdapter,
     },
     ProjectDomainEventUseCase,
+    PublishProjectionOutboxBatchService,
     RabbitMqProjectionConsumerService,
+    ProjectionOutboxPollerService,
   ],
 })
 export class AppModule {}

@@ -8,6 +8,8 @@ const DEFAULTS = {
   queue: 'q.projection',
   prefetch: 50,
   consumerName: 'projection:events',
+  outboxPollIntervalMs: 2000,
+  outboxBatchSize: 50,
 } as const;
 
 export const PROJECTION_SERVICE_ENV_FILE_PATHS = [
@@ -48,6 +50,17 @@ export class ProjectionServiceConfigService {
   get consumerName(): string {
     return this.config.get<string>('PROJECTION_SERVICE_CONSUMER_NAME', DEFAULTS.consumerName);
   }
+
+  get outboxPollIntervalMs(): number {
+    return this.config.get<number>(
+      'PROJECTION_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+      DEFAULTS.outboxPollIntervalMs,
+    );
+  }
+
+  get outboxBatchSize(): number {
+    return this.config.get<number>('PROJECTION_SERVICE_OUTBOX_BATCH_SIZE', DEFAULTS.outboxBatchSize);
+  }
 }
 
 export function validateProjectionServiceEnvironment(
@@ -67,6 +80,16 @@ export function validateProjectionServiceEnvironment(
   );
   env.PROJECTION_SERVICE_CONSUMER_NAME =
     optionalString(raw.PROJECTION_SERVICE_CONSUMER_NAME) ?? DEFAULTS.consumerName;
+  env.PROJECTION_SERVICE_OUTBOX_POLL_INTERVAL_MS = toPositiveInt(
+    raw.PROJECTION_SERVICE_OUTBOX_POLL_INTERVAL_MS,
+    DEFAULTS.outboxPollIntervalMs,
+    'PROJECTION_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+  );
+  env.PROJECTION_SERVICE_OUTBOX_BATCH_SIZE = toPositiveInt(
+    raw.PROJECTION_SERVICE_OUTBOX_BATCH_SIZE,
+    DEFAULTS.outboxBatchSize,
+    'PROJECTION_SERVICE_OUTBOX_BATCH_SIZE',
+  );
   return env;
 }
 

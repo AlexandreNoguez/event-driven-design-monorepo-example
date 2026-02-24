@@ -173,6 +173,7 @@
 
 ## 7) Robustez e qualidade
 - [ ] Outbox Pattern completo (publisher + retry)
+  - Obs.: `upload-service` e `projection-service` já publicam via outbox; falta expandir/padronizar nos demais produtores e completar estratégia de retry operacional
 - [ ] DLQ visível e processo de “re-drive” (admin)
 - [ ] Regras de retry (ex: 3 tentativas + DLQ)
 - [ ] Timeouts e limites (tamanho máximo, tipos suportados)

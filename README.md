@@ -631,6 +631,13 @@ Documento de acompanhamento:
 - `docs/config-and-docker-plan.md`
 - `docs/events.md` (catalogo v1 de commands/events + exemplos JSON)
 
+Status funcional atual (smoke-test completo validado):
+
+- fluxo happy-path local confirmado: `POST /uploads` -> PUT MinIO (presigned) -> `confirm`
+- timeline projetada ate `ProcessingCompleted.v1`
+- `notification-service` envia e-mail para Mailhog no evento `ProcessingCompleted.v1`
+- `projection-service` publica `ProcessingCompleted.v1` via outbox (MVP robustecido)
+
 Status atual da fase:
 
 - Template de config validada com `@nestjs/config` implementado em `upload-service` e `validator-service`
