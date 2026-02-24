@@ -646,6 +646,27 @@ Status atual da fase:
 - Dockerfiles multi-stage (`dev`/`build`/`prod`) criados para todos os backends
 - Compose full dev (`infra` + `backends`) criado em `infra/docker-compose.dev.yml`
 - Scripts raiz atualizados: `docker:up` (stack completa), `docker:up:infra`, `docker:down`, `docker:logs`
-- Próxima etapa: item `6` (catálogo de eventos/contratos v1); frontends entram no compose depois (itens `8/9`)
+- Próxima etapa principal: item `7` (robustez e qualidade); frontends entram no compose depois (itens `8/9`) e a introdução de Saga fica planejada para v0.2
+
+---
+
+## 13.2) Evolução planejada: Saga (v0.2)
+
+O projeto **já é Event-Driven Design** e atualmente coordena a conclusão do pipeline de forma implícita no `projection-service`.
+
+Para a evolução v0.2 (sem alterar o MVP atual), a direção arquitetural definida é:
+
+- **Saga coreografada com Process Manager explícito**
+- `projection-service` voltando ao foco principal de **read model**
+- regras de `completed` / `failed` / `timed-out` modeladas de forma explícita e testável
+
+Documentação da decisão e roadmap:
+
+- `docs/saga.md`
+- `docs/adr/0001-saga-adoption.md`
+
+Observação:
+
+- A introdução da Saga é planejada como evolução incremental, mantendo compatibilidade com o fluxo event-driven atual e sem reescrever o pipeline do MVP.
 
 ---

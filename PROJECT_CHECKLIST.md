@@ -179,6 +179,13 @@
 - [ ] Timeouts e limites (tamanho máximo, tipos suportados)
 - [ ] Padronizar erros (códigos e mensagens) no gateway
 - [ ] Logs estruturados com `correlationId` em todos serviços
+- [ ] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
+  - [ ] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
+  - [ ] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)
+  - [ ] Definir timeouts de processo e política de expiração
+  - [ ] Definir eventos de término planejados (`ProcessingFailed.v1`, `ProcessingTimedOut.v1`)
+  - [ ] Planejar migração da regra de conclusão de `ProcessingCompleted.v1` do `projection-service` para a Saga
+  - [ ] Definir testes da Saga (happy path, falha, timeout) para v0.2
 
 ---
 

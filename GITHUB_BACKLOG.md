@@ -17,6 +17,7 @@ Este backlog foi organizado para execução em milestones curtas, com foco em po
 - `service:audit`
 - `event-contract`
 - `observability`
+- `saga`
 - `testing`
 - `documentation`
 
@@ -202,6 +203,30 @@ Status atual:
 - Critérios de aceite:
   - Filas DLQ criadas para consumers críticos
   - Processo de re-drive descrito no README
+
+### Issue 18.1: Definir Saga (v0.2) e plano de adoção incremental
+- Labels: `architecture`, `saga`, `documentation`
+- Descrição: Formalizar a evolução para Saga coreografada com Process Manager explícito, mantendo compatibilidade com o pipeline atual.
+- Critérios de aceite:
+  - `docs/saga.md` documenta contexto atual, alvo e roadmap incremental
+  - ADR com decisão e tradeoffs (`coreografada` vs `orquestrada`)
+  - README e checklist referenciam a evolução planejada
+
+### Issue 18.2: Implementar Process Manager da Saga (modo shadow)
+- Labels: `backend`, `saga`, `service:projection`
+- Descrição: Introduzir Process Manager para acompanhar progresso por `fileId/correlationId` sem substituir imediatamente o publisher atual de `ProcessingCompleted.v1`.
+- Critérios de aceite:
+  - Estado da saga persistido (ex.: `started`, `completed`, `failed`, `timed-out`)
+  - Idempotência e observabilidade por `correlationId`
+  - Comparação de resultado com conclusão atual do `projection-service`
+
+### Issue 18.3: Migrar conclusão do pipeline para a Saga + eventos de falha/timeout
+- Labels: `backend`, `saga`, `event-contract`
+- Descrição: Transferir a decisão de conclusão para o Process Manager e introduzir eventos de término planejados.
+- Critérios de aceite:
+  - `ProcessingCompleted.v1` publicado pela Saga (com outbox)
+  - `ProcessingFailed.v1` e `ProcessingTimedOut.v1` definidos e documentados
+  - `projection-service` permanece focado em read model/timeline
 
 ### Issue 19: Criar `app:admin-web` v0
 - Labels: `frontend`
