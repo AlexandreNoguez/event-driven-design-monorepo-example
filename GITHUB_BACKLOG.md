@@ -190,6 +190,10 @@ Status atual:
 
 ## Milestone M4 — Robustez e operação
 
+Status atual:
+- `17` parcial (`upload-service` e `projection-service` publicando via outbox; falta padronizar retry operacional nos demais produtores)
+- `18` parcial (DLQ visível + endpoints admin de re-drive no `api-gateway`; falta endurecer estrategia e fluxo de re-drive)
+
 ### Issue 17: Outbox completo com retry
 - Labels: `backend`, `observability`
 - Descrição: Completar ciclo outbox (publisher, retry, marcação de entrega).

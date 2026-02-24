@@ -5,6 +5,10 @@ const DEFAULTS = {
   port: 3000,
   rabbitmqUrl: 'amqp://event:event@localhost:5672',
   rabbitmqCommandsExchange: 'domain.commands',
+  rabbitmqManagementApiBaseUrl: 'http://localhost:15672/api',
+  rabbitmqManagementUser: 'event',
+  rabbitmqManagementPassword: 'event',
+  rabbitmqVhost: '/',
   minioEndpoint: 'localhost',
   minioApiPort: 9000,
   minioUseSsl: false,
@@ -34,6 +38,24 @@ export class ApiGatewayConfigService {
   get rabbitmqUrl(): string { return this.config.get<string>('RABBITMQ_URL', DEFAULTS.rabbitmqUrl); }
   get rabbitmqCommandsExchange(): string {
     return this.config.get<string>('RABBITMQ_EXCHANGE_COMMANDS', DEFAULTS.rabbitmqCommandsExchange);
+  }
+  get rabbitmqManagementApiBaseUrl(): string {
+    return this.config.get<string>(
+      'RABBITMQ_MANAGEMENT_API_URL',
+      DEFAULTS.rabbitmqManagementApiBaseUrl,
+    );
+  }
+  get rabbitmqManagementUser(): string {
+    return this.config.get<string>('RABBITMQ_MANAGEMENT_USER', DEFAULTS.rabbitmqManagementUser);
+  }
+  get rabbitmqManagementPassword(): string {
+    return this.config.get<string>(
+      'RABBITMQ_MANAGEMENT_PASSWORD',
+      DEFAULTS.rabbitmqManagementPassword,
+    );
+  }
+  get rabbitmqVhost(): string {
+    return this.config.get<string>('RABBITMQ_VHOST', DEFAULTS.rabbitmqVhost);
   }
   get minioEndpoint(): string { return this.config.get<string>('MINIO_ENDPOINT', DEFAULTS.minioEndpoint); }
   get minioApiPort(): number { return this.config.get<number>('MINIO_API_PORT', DEFAULTS.minioApiPort); }
@@ -77,6 +99,16 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
   env.API_GATEWAY_PORT = toPositiveInt(raw.API_GATEWAY_PORT, DEFAULTS.port, 'API_GATEWAY_PORT');
   env.RABBITMQ_URL = optionalString(raw.RABBITMQ_URL) ?? DEFAULTS.rabbitmqUrl;
   env.RABBITMQ_EXCHANGE_COMMANDS = optionalString(raw.RABBITMQ_EXCHANGE_COMMANDS) ?? DEFAULTS.rabbitmqCommandsExchange;
+  env.RABBITMQ_MANAGEMENT_API_URL =
+    optionalString(raw.RABBITMQ_MANAGEMENT_API_URL) ??
+    deriveRabbitMqManagementApiUrl(raw, env.RABBITMQ_URL as string);
+  env.RABBITMQ_MANAGEMENT_USER =
+    optionalString(raw.RABBITMQ_MANAGEMENT_USER) ??
+    deriveRabbitMqManagementUser(env.RABBITMQ_URL as string);
+  env.RABBITMQ_MANAGEMENT_PASSWORD =
+    optionalString(raw.RABBITMQ_MANAGEMENT_PASSWORD) ??
+    deriveRabbitMqManagementPassword(env.RABBITMQ_URL as string);
+  env.RABBITMQ_VHOST = optionalString(raw.RABBITMQ_VHOST) ?? DEFAULTS.rabbitmqVhost;
   env.MINIO_ENDPOINT = optionalString(raw.MINIO_ENDPOINT) ?? DEFAULTS.minioEndpoint;
   env.MINIO_API_PORT = toPositiveInt(raw.MINIO_API_PORT, DEFAULTS.minioApiPort, 'MINIO_API_PORT');
   env.MINIO_USE_SSL = toBoolean(raw.MINIO_USE_SSL, DEFAULTS.minioUseSsl, 'MINIO_USE_SSL');
@@ -111,6 +143,40 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
   env.JWT_ISSUER_URL = issuer ?? '';
 
   return env;
+}
+
+function deriveRabbitMqManagementApiUrl(raw: Record<string, unknown>, rabbitmqUrl: string): string {
+  const host = optionalString(raw.RABBITMQ_HOST);
+  const port = optionalString(raw.RABBITMQ_MANAGEMENT_PORT);
+
+  if (host) {
+    return `http://${host}:${port ?? '15672'}/api`;
+  }
+
+  try {
+    const parsed = new URL(rabbitmqUrl);
+    return `http://${parsed.hostname}:15672/api`;
+  } catch {
+    return DEFAULTS.rabbitmqManagementApiBaseUrl;
+  }
+}
+
+function deriveRabbitMqManagementUser(rabbitmqUrl: string): string {
+  try {
+    const parsed = new URL(rabbitmqUrl);
+    return parsed.username || DEFAULTS.rabbitmqManagementUser;
+  } catch {
+    return DEFAULTS.rabbitmqManagementUser;
+  }
+}
+
+function deriveRabbitMqManagementPassword(rabbitmqUrl: string): string {
+  try {
+    const parsed = new URL(rabbitmqUrl);
+    return parsed.password || DEFAULTS.rabbitmqManagementPassword;
+  } catch {
+    return DEFAULTS.rabbitmqManagementPassword;
+  }
 }
 
 function optionalString(value: unknown): string | undefined {

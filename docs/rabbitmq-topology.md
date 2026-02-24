@@ -62,6 +62,34 @@ Observação:
 
 - O contador pode ser derivado do header `x-death` do RabbitMQ (incrementado nas passagens pela `q.X.retry`).
 
+## DLQ visível e re-drive (admin)
+
+Foi adicionado um conjunto de endpoints administrativos no `api-gateway` (protegidos por role `admin`) para operacao das DLQs conhecidas do MVP:
+
+- `GET /admin/dlq/queues`
+- `GET /admin/dlq/queues/:queue/messages?limit=20` (peek)
+- `POST /admin/dlq/queues/:queue/re-drive` (body: `{ "limit": 10 }`)
+
+Filas aceitas no MVP:
+
+- `q.upload.commands.dlq`
+- `q.validator.dlq`
+- `q.thumbnail.dlq`
+- `q.extractor.dlq`
+- `q.projection.dlq`
+- `q.notification.dlq`
+- `q.audit.dlq`
+
+Estrategia de re-drive implementada (MVP):
+
+- Leitura da DLQ via RabbitMQ Management API (`queue/get`)
+- Republicacao para o exchange de retry da fila (`retry.q.X`) com routing key `retry`
+- Adicao de headers de auditoria (`x-redriven-*`)
+
+Caveat do MVP:
+
+- O re-drive via Management API usa `ack_requeue_false` ao ler da DLQ. Se a republicacao falhar apos a retirada da mensagem, pode ser necessario recovery manual (logs/audit). Para v0.2, evoluir para fluxo mais robusto (ex.: consumer admin dedicado + outbox/re-drive seguro).
+
 ## Como reaplicar a topologia após alterar definitions
 
 O import ocorre quando o `rabbitmq-init` executa. Para recarregar:

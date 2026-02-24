@@ -229,6 +229,7 @@ A proposta central: um **pipeline de upload** em etapas (validar → gerar thumb
 - Inicia upload com **presigned URL** MinIO (`POST /uploads`)
 - Confirma upload e publica **Commands** no RabbitMQ (`POST /uploads/:fileId/confirm`)
 - Fornece endpoints de leitura consultando **read model** (projection)
+- Endpoints admin de operação para **DLQ** (listar, inspecionar e re-drive)
 
 2. **upload-service** (Command handler)
 
@@ -474,6 +475,7 @@ sequenceDiagram
 
 - Falhas temporárias → retry automático
 - Falhas permanentes → DLQ com visibilidade no admin
+- Re-drive administrativo via endpoints protegidos por role `admin` no `api-gateway`
 
 **RNF-04** Observabilidade básica
 

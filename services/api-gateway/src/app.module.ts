@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { AdminDlqApplicationService } from './application/admin-dlq/admin-dlq.application.service';
+import { DLQ_ADMIN } from './application/admin-dlq/ports/dlq-admin.port';
 import { ACCESS_TOKEN_VERIFIER } from './application/auth/ports/access-token-verifier.port';
 import { COMMAND_PUBLISHER } from './application/uploads/ports/command-publisher.port';
 import { UPLOAD_OBJECT_STORAGE } from './application/uploads/ports/upload-object-storage.port';
@@ -14,8 +16,10 @@ import {
   validateApiGatewayEnvironment,
 } from './infrastructure/config/api-gateway-config.service';
 import { RabbitMqCommandPublisherAdapter } from './infrastructure/messaging/rabbitmq-command-publisher.adapter';
+import { RabbitMqManagementDlqAdminAdapter } from './infrastructure/messaging/rabbitmq-management-dlq-admin.adapter';
 import { InMemoryUploadsReadModelRepository } from './infrastructure/persistence/in-memory-uploads-read-model.repository';
 import { MinioUploadObjectStorageAdapter } from './infrastructure/storage/minio-upload-object-storage.adapter';
+import { AdminDlqController } from './presentation/http/admin/dlq.controller';
 import { JwtAuthGuard } from './presentation/http/auth/jwt-auth.guard';
 import { RolesGuard } from './presentation/http/auth/roles.guard';
 import { UploadsController } from './presentation/http/uploads/uploads.controller';
@@ -30,7 +34,7 @@ import { AppController } from './presentation/http/system/app.controller';
       validate: validateApiGatewayEnvironment,
     }),
   ],
-  controllers: [AppController, UploadsController],
+  controllers: [AppController, UploadsController, AdminDlqController],
   providers: [
     ApiGatewayConfigService,
     ServiceInfoQuery,
@@ -45,10 +49,16 @@ import { AppController } from './presentation/http/system/app.controller';
       useExisting: InMemoryUploadsReadModelRepository,
     },
     UploadsApplicationService,
+    AdminDlqApplicationService,
     RabbitMqCommandPublisherAdapter,
     {
       provide: COMMAND_PUBLISHER,
       useExisting: RabbitMqCommandPublisherAdapter,
+    },
+    RabbitMqManagementDlqAdminAdapter,
+    {
+      provide: DLQ_ADMIN,
+      useExisting: RabbitMqManagementDlqAdminAdapter,
     },
     MinioUploadObjectStorageAdapter,
     {

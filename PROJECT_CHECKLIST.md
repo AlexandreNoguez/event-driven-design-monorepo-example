@@ -174,7 +174,8 @@
 ## 7) Robustez e qualidade
 - [ ] Outbox Pattern completo (publisher + retry)
   - Obs.: `upload-service` e `projection-service` já publicam via outbox; falta expandir/padronizar nos demais produtores e completar estratégia de retry operacional
-- [ ] DLQ visível e processo de “re-drive” (admin)
+- [x] DLQ visível e processo de “re-drive” (admin)
+  - Endpoints admin no `api-gateway`: listagem, peek e re-drive de filas `q.*.dlq` conhecidas (RabbitMQ Management API)
 - [ ] Regras de retry (ex: 3 tentativas + DLQ)
 - [ ] Timeouts e limites (tamanho máximo, tipos suportados)
 - [ ] Padronizar erros (códigos e mensagens) no gateway
