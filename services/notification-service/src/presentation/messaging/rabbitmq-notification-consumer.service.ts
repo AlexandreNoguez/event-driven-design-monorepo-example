@@ -1,5 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
+import {
+  applyRabbitMqRetryPolicy,
+  createRabbitMqConsumerJsonLogLine,
+} from '@event-pipeline/shared';
 import { HandleNotificationEventUseCase } from '../../application/notification/handle-notification-event.use-case';
 import { isNotifiableEvent } from '../../domain/notification/notifiable-event';
 import { NotificationServiceConfigService } from '../../infrastructure/config/notification-service-config.service';
@@ -66,15 +70,22 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {
+    const queue = this.config.queue;
     let parsed: unknown;
 
     try {
       parsed = JSON.parse(message.content.toString('utf-8'));
     } catch (error) {
-      this.logger.error(
-        `Invalid JSON in notification message. ${error instanceof Error ? error.message : String(error)}`,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'invalid-json' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'notification-service',
+        message: decision.action === 'parked' ? 'Invalid notification JSON parked in DLQ after retry limit.' : 'Invalid notification JSON rejected for retry.',
+        queue,
+        amqpMessage: message,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -85,7 +96,14 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
           : 'unknown';
 
       // Notification queue may receive future processing events. Ignore unsupported ones.
-      this.logger.debug(`Ignoring unsupported notification event type=${type}.`);
+      this.logger.debug(createRabbitMqConsumerJsonLogLine({
+        level: 'debug',
+        service: 'notification-service',
+        message: `Ignoring unsupported notification event type=${type}.`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+      }));
       channel.ack(message);
       return;
     }
@@ -97,13 +115,19 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
       });
       channel.ack(message);
     } catch (error) {
-      this.logger.error(
-        `Failed to process notification event ${parsed.type}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'notification-error' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'notification-service',
+        message: decision.action === 'parked'
+          ? `Failed to process notification event ${parsed.type}; parked in DLQ after retry limit.`
+          : `Failed to process notification event ${parsed.type}; sent to retry.`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
     }
   }
 

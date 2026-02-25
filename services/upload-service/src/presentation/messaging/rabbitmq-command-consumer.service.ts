@@ -1,5 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
+import {
+  applyRabbitMqRetryPolicy,
+  createRabbitMqConsumerJsonLogLine,
+} from '@event-pipeline/shared';
 import { HandleUploadRequestedUseCase } from '../../application/uploads/handle-upload-requested.use-case';
 import type { UploadRequestedCommandEnvelope } from '../../domain/uploads/upload-message.types';
 import { UploadServiceConfigService } from '../../infrastructure/config/upload-service-config.service';
@@ -66,15 +70,22 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {
+    const queue = this.config.commandQueue;
     let parsed: unknown;
 
     try {
       parsed = JSON.parse(message.content.toString('utf-8'));
     } catch (error) {
-      this.logger.error(
-        `Invalid JSON in command message. ${error instanceof Error ? error.message : String(error)}`,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'invalid-json' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'upload-service',
+        message: decision.action === 'parked' ? 'Invalid command JSON parked in DLQ after retry limit.' : 'Invalid command JSON rejected for retry.',
+        queue,
+        amqpMessage: message,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -84,10 +95,18 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
           ? (parsed as Record<string, unknown>).type
           : 'unknown';
 
-      this.logger.warn(
-        `Unsupported command received on q.upload.commands (type=${messageType}). Sending to retry/DLQ.`,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'unsupported-command-type' });
+      this.logger.warn(createRabbitMqConsumerJsonLogLine({
+        level: 'warn',
+        service: 'upload-service',
+        message: decision.action === 'parked'
+          ? `Unsupported command parked in DLQ (${messageType}).`
+          : `Unsupported command sent to retry (${messageType}).`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -95,11 +114,19 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
       await this.handleUploadRequestedUseCase.execute(parsed);
       channel.ack(message);
     } catch (error) {
-      this.logger.error(
-        `Failed to process UploadRequested.v1: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'processing-error' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'upload-service',
+        message: decision.action === 'parked'
+          ? 'Failed to process UploadRequested.v1; parked in DLQ after retry limit.'
+          : 'Failed to process UploadRequested.v1; sent to retry.',
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
     }
   }
 

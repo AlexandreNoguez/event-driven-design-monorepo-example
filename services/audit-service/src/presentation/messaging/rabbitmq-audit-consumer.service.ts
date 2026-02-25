@@ -1,5 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
+import {
+  applyRabbitMqRetryPolicy,
+  createRabbitMqConsumerJsonLogLine,
+} from '@event-pipeline/shared';
 import { RecordAuditableEventUseCase } from '../../application/audit/record-auditable-event.use-case';
 import { isAuditableEvent } from '../../domain/audit/auditable-event';
 import { AuditServiceConfigService } from '../../infrastructure/config/audit-service-config.service';
@@ -66,15 +70,22 @@ export class RabbitMqAuditConsumerService implements OnModuleInit, OnModuleDestr
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {
+    const queue = this.config.queue;
     let parsed: unknown;
 
     try {
       parsed = JSON.parse(message.content.toString('utf-8'));
     } catch (error) {
-      this.logger.error(
-        `Invalid JSON in audit message. ${error instanceof Error ? error.message : String(error)}`,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'invalid-json' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'audit-service',
+        message: decision.action === 'parked' ? 'Invalid audit JSON parked in DLQ after retry limit.' : 'Invalid audit JSON rejected for retry.',
+        queue,
+        amqpMessage: message,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -85,7 +96,14 @@ export class RabbitMqAuditConsumerService implements OnModuleInit, OnModuleDestr
           : 'unknown';
 
       // q.audit is intended for events; ignore unsupported messages rather than retrying.
-      this.logger.debug(`Ignoring unsupported audit message type=${type}.`);
+      this.logger.debug(createRabbitMqConsumerJsonLogLine({
+        level: 'debug',
+        service: 'audit-service',
+        message: `Ignoring unsupported audit message type=${type}.`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+      }));
       channel.ack(message);
       return;
     }
@@ -97,11 +115,19 @@ export class RabbitMqAuditConsumerService implements OnModuleInit, OnModuleDestr
       });
       channel.ack(message);
     } catch (error) {
-      this.logger.error(
-        `Failed to audit event ${parsed.type}: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'audit-error' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'audit-service',
+        message: decision.action === 'parked'
+          ? `Failed to audit event ${parsed.type}; parked in DLQ after retry limit.`
+          : `Failed to audit event ${parsed.type}; sent to retry.`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
     }
   }
 

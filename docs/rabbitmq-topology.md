@@ -51,9 +51,9 @@ Para cada fila `q.X`, são criados:
 4. Ao expirar TTL, `q.X.retry` dead-lettera para o default exchange (`""`) com routing key = `q.X`.
 5. A mensagem volta somente para a fila original `q.X` (sem republish para `domain.events`/`domain.commands`).
 
-### Fluxo de DLQ (estratégia definida)
+### Fluxo de DLQ (estratégia implementada no MVP)
 
-- Após `N` tentativas (MVP sugerido: `3`), o consumer deve fazer parking manual na DLQ da propria fila:
+- Após `N` tentativas (MVP implementado: `3`), o consumer faz parking manual na DLQ da propria fila:
   - publicar em `dlq.q.X` com routing key `parking`
   - `ack` da mensagem atual
 - Isso evita loop infinito de retry e preserva isolamento por consumer.
@@ -61,6 +61,7 @@ Para cada fila `q.X`, são criados:
 Observação:
 
 - O contador pode ser derivado do header `x-death` do RabbitMQ (incrementado nas passagens pela `q.X.retry`).
+- Implementacao atual: helper compartilhado em `packages/shared` aplica a politica com base no `x-death` da fila original (`q.X`).
 
 ## DLQ visível e re-drive (admin)
 
@@ -85,6 +86,10 @@ Estrategia de re-drive implementada (MVP):
 - Leitura da DLQ via RabbitMQ Management API (`queue/get`)
 - Republicacao para o exchange de retry da fila (`retry.q.X`) com routing key `retry`
 - Adicao de headers de auditoria (`x-redriven-*`)
+
+Observabilidade atual dos consumers:
+
+- Falhas de processamento, retries e parking em DLQ emitem logs JSON (com `correlationId`, `queue`, `routingKey`, `messageType` e tentativas) nos workers.
 
 Caveat do MVP:
 

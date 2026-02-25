@@ -1,5 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
+import {
+  applyRabbitMqRetryPolicy,
+  createRabbitMqConsumerJsonLogLine,
+} from '@event-pipeline/shared';
 import { ProjectDomainEventUseCase } from '../../application/projection/project-domain-event.use-case';
 import { isProjectableDomainEvent } from '../../domain/projection/projectable-event';
 import { ProjectionServiceConfigService } from '../../infrastructure/config/projection-service-config.service';
@@ -66,15 +70,22 @@ export class RabbitMqProjectionConsumerService implements OnModuleInit, OnModule
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {
+    const queue = this.config.queue;
     let parsed: unknown;
 
     try {
       parsed = JSON.parse(message.content.toString('utf-8'));
     } catch (error) {
-      this.logger.error(
-        `Invalid JSON in projection message. ${error instanceof Error ? error.message : String(error)}`,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'invalid-json' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'projection-service',
+        message: decision.action === 'parked' ? 'Invalid projection JSON parked in DLQ after retry limit.' : 'Invalid projection JSON rejected for retry.',
+        queue,
+        amqpMessage: message,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -85,7 +96,14 @@ export class RabbitMqProjectionConsumerService implements OnModuleInit, OnModule
           : 'unknown';
 
       // Projection queue is intentionally broad; unknown events are ignored instead of retried.
-      this.logger.debug(`Ignoring unsupported projection event type=${type}.`);
+      this.logger.debug(createRabbitMqConsumerJsonLogLine({
+        level: 'debug',
+        service: 'projection-service',
+        message: `Ignoring unsupported projection event type=${type}.`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+      }));
       channel.ack(message);
       return;
     }
@@ -97,11 +115,19 @@ export class RabbitMqProjectionConsumerService implements OnModuleInit, OnModule
       });
       channel.ack(message);
     } catch (error) {
-      this.logger.error(
-        `Failed to project event ${parsed.type}: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'projection-error' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'projection-service',
+        message: decision.action === 'parked'
+          ? `Failed to project event ${parsed.type}; parked in DLQ after retry limit.`
+          : `Failed to project event ${parsed.type}; sent to retry.`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
     }
   }
 

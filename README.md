@@ -476,11 +476,13 @@ sequenceDiagram
 - Falhas temporárias → retry automático
 - Falhas permanentes → DLQ com visibilidade no admin
 - Re-drive administrativo via endpoints protegidos por role `admin` no `api-gateway`
+- Politica MVP implementada nos consumers: ate `3` tentativas (via `x-death`) e parking manual em `q.*.dlq`
 
 **RNF-04** Observabilidade básica
 
 - Logs estruturados com `correlationId`
 - Métricas (opcional v0.2)
+- Status atual: consumers AMQP dos workers emitem logs JSON com contexto de fila/routing key/retry
 
 **RNF-05** Segurança local
 

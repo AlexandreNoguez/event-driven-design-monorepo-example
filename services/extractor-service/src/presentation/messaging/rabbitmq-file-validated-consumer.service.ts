@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
-import type { DomainEventV1 } from '@event-pipeline/shared';
+import {
+  applyRabbitMqRetryPolicy,
+  createRabbitMqConsumerJsonLogLine,
+  type DomainEventV1,
+} from '@event-pipeline/shared';
 import { HandleFileValidatedUseCase } from '../../application/extractor/handle-file-validated.use-case';
 import { ExtractorServiceConfigService } from '../../infrastructure/config/extractor-service-config.service';
 
@@ -66,15 +70,22 @@ export class RabbitMqFileValidatedConsumerService implements OnModuleInit, OnMod
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {
+    const queue = this.config.queue;
     let parsed: unknown;
 
     try {
       parsed = JSON.parse(message.content.toString('utf-8'));
     } catch (error) {
-      this.logger.error(
-        `Invalid JSON in extractor message. ${error instanceof Error ? error.message : String(error)}`,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'invalid-json' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'extractor-service',
+        message: decision.action === 'parked' ? 'Invalid JSON parked in DLQ after retry limit.' : 'Invalid JSON rejected for retry.',
+        queue,
+        amqpMessage: message,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -83,8 +94,16 @@ export class RabbitMqFileValidatedConsumerService implements OnModuleInit, OnMod
         typeof (parsed as Record<string, unknown>)?.type === 'string'
           ? (parsed as Record<string, unknown>).type
           : 'unknown';
-      this.logger.warn(`Unsupported event on extractor queue (type=${type}). Sending to retry/DLQ.`);
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'unsupported-event-type' });
+      this.logger.warn(createRabbitMqConsumerJsonLogLine({
+        level: 'warn',
+        service: 'extractor-service',
+        message: decision.action === 'parked' ? `Unsupported event type parked in DLQ (${type}).` : `Unsupported event type sent to retry (${type}).`,
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
       return;
     }
 
@@ -92,11 +111,19 @@ export class RabbitMqFileValidatedConsumerService implements OnModuleInit, OnMod
       await this.handleFileValidatedUseCase.execute(parsed);
       channel.ack(message);
     } catch (error) {
-      this.logger.error(
-        `Failed to process FileValidated.v1: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      channel.nack(message, false, false);
+      const decision = applyRabbitMqRetryPolicy({ channel, message, queue, parkingReason: 'processing-error' });
+      this.logger.error(createRabbitMqConsumerJsonLogLine({
+        level: 'error',
+        service: 'extractor-service',
+        message: decision.action === 'parked'
+          ? 'Failed to process FileValidated.v1; parked in DLQ after retry limit.'
+          : 'Failed to process FileValidated.v1; sent to retry.',
+        queue,
+        amqpMessage: message,
+        envelope: parsed,
+        error,
+        metadata: { retryAction: decision.action, deliveryAttempt: decision.deliveryAttempt, maxDeliveryAttempts: decision.maxDeliveryAttempts },
+      }));
     }
   }
 
