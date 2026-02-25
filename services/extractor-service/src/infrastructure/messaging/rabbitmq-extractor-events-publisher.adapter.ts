@@ -104,26 +104,44 @@ export class RabbitMqExtractorEventsPublisherAdapter
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'extractor-service',
+        message: 'AMQP connection error for extractor publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for extractor publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'extractor-service',
+        message: 'AMQP connection closed for extractor publisher.',
+        correlationId: 'system',
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
 
     channel.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'extractor-service',
+        message: 'AMQP channel error for extractor publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.channel = undefined;
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for extractor publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'extractor-service',
+        message: 'AMQP channel closed for extractor publisher.',
+        correlationId: 'system',
+      })));
       this.channel = undefined;
     });
 

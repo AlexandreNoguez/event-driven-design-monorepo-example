@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { AppModule } from './app.module';
 import { UploadServiceConfigService } from './infrastructure/config/upload-service-config.service';
 
@@ -15,11 +16,23 @@ async function bootstrap() {
   await app.listen(port);
 
   const logger = new Logger('Bootstrap');
-  logger.log(`${SERVICE_NAME} listening on port ${port}`);
+  logger.log(JSON.stringify(createJsonLogEntry({
+    level: 'info',
+    service: SERVICE_NAME,
+    message: `${SERVICE_NAME} listening on port ${port}`,
+    correlationId: 'system',
+    metadata: { port },
+  })));
 }
 
 bootstrap().catch((error: unknown) => {
   const logger = new Logger('Bootstrap');
-  logger.error(`Failed to start ${SERVICE_NAME}`, error instanceof Error ? error.stack : String(error));
+  logger.error(JSON.stringify(createJsonLogEntry({
+    level: 'error',
+    service: SERVICE_NAME,
+    message: `Failed to start ${SERVICE_NAME}`,
+    correlationId: 'system',
+    error,
+  })));
   process.exitCode = 1;
 });

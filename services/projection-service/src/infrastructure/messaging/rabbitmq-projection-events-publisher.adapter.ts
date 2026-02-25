@@ -101,26 +101,44 @@ export class RabbitMqProjectionEventsPublisherAdapter
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'projection-service',
+        message: 'AMQP connection error for projection publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for projection publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'projection-service',
+        message: 'AMQP connection closed for projection publisher.',
+        correlationId: 'system',
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
 
     channel.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'projection-service',
+        message: 'AMQP channel error for projection publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.channel = undefined;
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for projection publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'projection-service',
+        message: 'AMQP channel closed for projection publisher.',
+        correlationId: 'system',
+      })));
       this.channel = undefined;
     });
 

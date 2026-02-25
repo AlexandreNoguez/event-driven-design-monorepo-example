@@ -102,26 +102,44 @@ export class RabbitMqUploadEventsPublisherAdapter implements UploadEventsPublish
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'upload-service',
+        message: 'AMQP connection error for outbox publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for outbox publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'upload-service',
+        message: 'AMQP connection closed for outbox publisher.',
+        correlationId: 'system',
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
 
     channel.on('error', (error) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'upload-service',
+        message: 'AMQP channel error for outbox publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.channel = undefined;
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for outbox publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'upload-service',
+        message: 'AMQP channel closed for outbox publisher.',
+        correlationId: 'system',
+      })));
       this.channel = undefined;
     });
 

@@ -45,6 +45,7 @@ export interface PersistUploadAndOutboxInput {
 export interface OutboxPendingEvent {
   eventId: string;
   routingKey: string;
+  attemptCount: number;
   envelope: FileUploadedEventEnvelope;
 }
 

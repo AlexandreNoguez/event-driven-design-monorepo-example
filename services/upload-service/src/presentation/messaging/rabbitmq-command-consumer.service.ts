@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import {
   applyRabbitMqRetryPolicy,
+  createJsonLogEntry,
   createRabbitMqConsumerJsonLogLine,
 } from '@event-pipeline/shared';
 import { HandleUploadRequestedUseCase } from '../../application/uploads/handle-upload-requested.use-case';
@@ -37,20 +38,42 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
     const channel = await connection.createChannel();
 
     connection.on('error', (error) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'upload-service',
+        message: 'AMQP connection error for upload command consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for upload command consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'upload-service',
+        message: 'AMQP connection closed for upload command consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
     channel.on('error', (error) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'upload-service',
+        message: 'AMQP channel error for upload command consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for upload command consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'upload-service',
+        message: 'AMQP channel closed for upload command consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
 
     await channel.checkQueue(queue);
@@ -66,7 +89,14 @@ export class RabbitMqCommandConsumerService implements OnModuleInit, OnModuleDes
     this.connection = connection;
     this.channel = channel;
     this.consumerTag = consumed.consumerTag;
-    this.logger.log(`Consuming upload commands from queue "${queue}" with prefetch=${prefetch}.`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'upload-service',
+      message: 'Upload command consumer started.',
+      correlationId: 'system',
+      queue,
+      metadata: { prefetch },
+    })));
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {

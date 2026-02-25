@@ -466,6 +466,8 @@ sequenceDiagram
 **RNF-01** Confiabilidade de publicação (Outbox)
 
 - Eventos só são publicados após commit da transação
+- `upload-service` e `projection-service` usam outbox com publisher desacoplado
+- Retry operacional de outbox (MVP): tentativas limitadas por config (`*_OUTBOX_MAX_PUBLISH_ATTEMPTS`) e falha terminal com `publish_status = 'failed'`
 
 **RNF-02** Idempotência em consumers
 
@@ -490,8 +492,7 @@ sequenceDiagram
 
 - Logs estruturados com `correlationId`
 - Métricas (opcional v0.2)
-- Status atual: consumers AMQP dos workers emitem logs JSON com contexto de fila/routing key/retry
-- Avanco atual: gateway (publicacao de commands e DLQ admin) e outbox/publishers de `upload-service`/`projection-service` tambem emitem logs JSON estruturados
+- Cobertura atual: bootstraps, consumers/publishers AMQP, use cases principais, outbox pollers, repositorios/infra e operacao do `api-gateway` (DLQ admin, command publisher, filtro HTTP)
 
 **RNF-04.1** Erros HTTP padronizados (gateway)
 

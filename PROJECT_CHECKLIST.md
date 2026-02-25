@@ -173,7 +173,7 @@
 
 ## 7) Robustez e qualidade
 - [ ] Outbox Pattern completo (publisher + retry)
-  - Obs.: `upload-service` e `projection-service` já publicam via outbox; falta expandir/padronizar nos demais produtores e completar estratégia de retry operacional
+  - Parcial: `upload-service` e `projection-service` publicam via outbox com retry operacional (tentativas maximas + falha terminal em `publish_status='failed'` + telemetria); falta expandir/padronizar para demais produtores
 - [x] DLQ visível e processo de “re-drive” (admin)
   - Endpoints admin no `api-gateway`: listagem, peek e re-drive de filas `q.*.dlq` conhecidas (RabbitMQ Management API)
 - [x] Regras de retry (ex: 3 tentativas + DLQ)
@@ -183,8 +183,8 @@
   - Workers ja possuem limites/tipos suportados configuraveis (validator/thumbnail/extractor)
 - [x] Padronizar erros (códigos e mensagens) no gateway
   - `api-gateway` usa filtro HTTP global com envelope de erro padronizado (`code`, `message`, `statusCode`, `correlationId`, `path`, `method`)
-- [ ] Logs estruturados com `correlationId` em todos serviços
-  - Parcial: cobertura ampliada para consumers AMQP, use cases principais, publishers, outbox pollers e componentes operacionais do `api-gateway` (DLQ admin, command publisher, bootstrap, filtro HTTP)
+- [x] Logs estruturados com `correlationId` em todos serviços
+  - Cobertura em todos os servicos: bootstraps, consumers/publishers AMQP, use cases principais, outbox pollers, repositórios/infra e componentes operacionais do `api-gateway` (DLQ admin, command publisher, filtro HTTP)
 - [ ] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
   - [ ] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
   - [ ] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)

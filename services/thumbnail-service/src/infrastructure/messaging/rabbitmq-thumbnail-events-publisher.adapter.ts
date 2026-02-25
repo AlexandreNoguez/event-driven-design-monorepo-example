@@ -104,26 +104,44 @@ export class RabbitMqThumbnailEventsPublisherAdapter
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'thumbnail-service',
+        message: 'AMQP connection error for thumbnail publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for thumbnail publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'thumbnail-service',
+        message: 'AMQP connection closed for thumbnail publisher.',
+        correlationId: 'system',
+      })));
       this.connection = undefined;
       this.channel = undefined;
     });
 
     channel.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'thumbnail-service',
+        message: 'AMQP channel error for thumbnail publisher.',
+        correlationId: 'system',
+        error,
+      })));
       this.channel = undefined;
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for thumbnail publisher.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'thumbnail-service',
+        message: 'AMQP channel closed for thumbnail publisher.',
+        correlationId: 'system',
+      })));
       this.channel = undefined;
     });
 

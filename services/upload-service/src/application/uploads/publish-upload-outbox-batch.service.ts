@@ -49,17 +49,24 @@ export class PublishUploadOutboxBatchService {
             userId: event.envelope.payload.userId,
             metadata: {
               outboxEventId: event.eventId,
+              publishAttempt: event.attemptCount + 1,
             },
           })));
         } catch (error) {
+          const maxAttempts = this.config.outboxMaxPublishAttempts;
+          const publishAttempt = event.attemptCount + 1;
+          const terminalFailure = publishAttempt >= maxAttempts;
           await this.repository.markOutboxEventPublishFailed(
             event.eventId,
             error instanceof Error ? error.message : String(error),
+            terminalFailure,
           );
           this.logger.error(JSON.stringify(createJsonLogEntry({
             level: 'error',
             service: 'upload-service',
-            message: 'Failed to publish outbox event.',
+            message: terminalFailure
+              ? 'Failed to publish outbox event; max attempts reached.'
+              : 'Failed to publish outbox event; will retry on next poll.',
             correlationId: event.envelope.correlationId,
             causationId: event.envelope.causationId,
             messageId: event.envelope.messageId,
@@ -69,6 +76,9 @@ export class PublishUploadOutboxBatchService {
             userId: event.envelope.payload.userId,
             metadata: {
               outboxEventId: event.eventId,
+              publishAttempt,
+              maxPublishAttempts: maxAttempts,
+              terminalFailure,
             },
             error,
           })));

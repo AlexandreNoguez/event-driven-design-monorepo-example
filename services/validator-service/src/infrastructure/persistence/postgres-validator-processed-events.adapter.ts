@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { Pool } from 'pg';
 import type {
   MarkProcessedEventInput,
@@ -21,9 +22,13 @@ export class PostgresValidatorProcessedEventsAdapter
     });
 
     this.pool.on('error', (error: unknown) => {
-      this.logger.error(
-        `Postgres pool error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'validator-service',
+        message: 'Postgres pool error in processed-events adapter.',
+        correlationId: 'system',
+        error,
+      })));
     });
   }
 

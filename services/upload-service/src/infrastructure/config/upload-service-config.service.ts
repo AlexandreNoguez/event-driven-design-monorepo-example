@@ -9,6 +9,7 @@ const DEFAULTS = {
   commandPrefetch: 10,
   outboxPollIntervalMs: 2000,
   outboxBatchSize: 50,
+  outboxMaxPublishAttempts: 5,
   minioUploadsBucket: 'uploads',
   objectKeyPrefix: 'raw',
 } as const;
@@ -59,6 +60,13 @@ export class UploadServiceConfigService {
     return this.config.get<number>('UPLOAD_SERVICE_OUTBOX_BATCH_SIZE', DEFAULTS.outboxBatchSize);
   }
 
+  get outboxMaxPublishAttempts(): number {
+    return this.config.get<number>(
+      'UPLOAD_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+      DEFAULTS.outboxMaxPublishAttempts,
+    );
+  }
+
   get minioUploadsBucket(): string {
     return this.config.get<string>('MINIO_BUCKET_UPLOADS', DEFAULTS.minioUploadsBucket);
   }
@@ -94,6 +102,11 @@ export function validateUploadServiceEnvironment(
     raw.UPLOAD_SERVICE_OUTBOX_BATCH_SIZE,
     DEFAULTS.outboxBatchSize,
     'UPLOAD_SERVICE_OUTBOX_BATCH_SIZE',
+  );
+  env.UPLOAD_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS = toPositiveInt(
+    raw.UPLOAD_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS,
+    DEFAULTS.outboxMaxPublishAttempts,
+    'UPLOAD_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
   );
   env.MINIO_BUCKET_UPLOADS = optionalString(raw.MINIO_BUCKET_UPLOADS) ?? DEFAULTS.minioUploadsBucket;
   env.UPLOAD_SERVICE_OBJECT_KEY_PREFIX =

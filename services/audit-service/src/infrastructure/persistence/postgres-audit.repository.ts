@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { Pool, type PoolClient } from 'pg';
 import type {
   AuditRepositoryPort,
@@ -19,9 +20,13 @@ export class PostgresAuditRepository implements AuditRepositoryPort, OnModuleDes
     });
 
     this.pool.on('error', (error: unknown) => {
-      this.logger.error(
-        `Postgres pool error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'audit-service',
+        message: 'Postgres pool error in audit repository.',
+        correlationId: 'system',
+        error,
+      })));
     });
   }
 

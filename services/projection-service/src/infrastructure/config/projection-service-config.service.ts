@@ -10,6 +10,7 @@ const DEFAULTS = {
   consumerName: 'projection:events',
   outboxPollIntervalMs: 2000,
   outboxBatchSize: 50,
+  outboxMaxPublishAttempts: 5,
 } as const;
 
 export const PROJECTION_SERVICE_ENV_FILE_PATHS = [
@@ -61,6 +62,13 @@ export class ProjectionServiceConfigService {
   get outboxBatchSize(): number {
     return this.config.get<number>('PROJECTION_SERVICE_OUTBOX_BATCH_SIZE', DEFAULTS.outboxBatchSize);
   }
+
+  get outboxMaxPublishAttempts(): number {
+    return this.config.get<number>(
+      'PROJECTION_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+      DEFAULTS.outboxMaxPublishAttempts,
+    );
+  }
 }
 
 export function validateProjectionServiceEnvironment(
@@ -89,6 +97,11 @@ export function validateProjectionServiceEnvironment(
     raw.PROJECTION_SERVICE_OUTBOX_BATCH_SIZE,
     DEFAULTS.outboxBatchSize,
     'PROJECTION_SERVICE_OUTBOX_BATCH_SIZE',
+  );
+  env.PROJECTION_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS = toPositiveInt(
+    raw.PROJECTION_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS,
+    DEFAULTS.outboxMaxPublishAttempts,
+    'PROJECTION_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
   );
   return env;
 }

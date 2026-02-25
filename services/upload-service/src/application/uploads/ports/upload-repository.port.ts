@@ -6,5 +6,9 @@ export interface UploadRepositoryPort {
   persistUploadAndOutbox(input: PersistUploadAndOutboxInput): Promise<void>;
   findPendingOutboxEvents(limit: number): Promise<OutboxPendingEvent[]>;
   markOutboxEventPublished(eventId: string): Promise<void>;
-  markOutboxEventPublishFailed(eventId: string, errorMessage: string): Promise<void>;
+  markOutboxEventPublishFailed(
+    eventId: string,
+    errorMessage: string,
+    terminalFailure: boolean,
+  ): Promise<void>;
 }

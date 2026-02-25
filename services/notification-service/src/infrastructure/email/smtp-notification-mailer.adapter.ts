@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type {
   NotificationMailerPort,
@@ -26,7 +27,19 @@ export class SmtpNotificationMailerAdapter implements NotificationMailerPort {
       headers: input.headers,
     });
 
-    this.logger.log(`SMTP mail sent to ${input.to} (messageId=${info.messageId ?? 'n/a'}).`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'notification-service',
+      message: 'SMTP mail sent.',
+      correlationId:
+        typeof input.headers?.['X-Correlation-Id'] === 'string'
+          ? input.headers['X-Correlation-Id']
+          : 'system',
+      metadata: {
+        recipient: input.to,
+        providerMessageId: info.messageId ?? null,
+      },
+    })));
 
     return {
       providerMessageId: typeof info.messageId === 'string' ? info.messageId : undefined,

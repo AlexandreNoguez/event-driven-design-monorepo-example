@@ -50,15 +50,21 @@ export class PublishProjectionOutboxBatchService {
               : undefined,
             metadata: {
               outboxEventId: event.eventId,
+              publishAttempt: event.attemptCount + 1,
             },
           })));
         } catch (error) {
+          const maxAttempts = this.config.outboxMaxPublishAttempts;
+          const publishAttempt = event.attemptCount + 1;
+          const terminalFailure = publishAttempt >= maxAttempts;
           const message = error instanceof Error ? error.message : String(error);
-          await this.repository.markOutboxEventPublishFailed(event.eventId, message);
+          await this.repository.markOutboxEventPublishFailed(event.eventId, message, terminalFailure);
           this.logger.error(JSON.stringify(createJsonLogEntry({
             level: 'error',
             service: 'projection-service',
-            message: 'Failed to publish projection outbox event.',
+            message: terminalFailure
+              ? 'Failed to publish projection outbox event; max attempts reached.'
+              : 'Failed to publish projection outbox event; will retry on next poll.',
             correlationId: event.envelope.correlationId,
             causationId: event.envelope.causationId,
             messageId: event.envelope.messageId,
@@ -69,6 +75,9 @@ export class PublishProjectionOutboxBatchService {
               : undefined,
             metadata: {
               outboxEventId: event.eventId,
+              publishAttempt,
+              maxPublishAttempts: maxAttempts,
+              terminalFailure,
             },
             error,
           })));

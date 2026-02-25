@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
 import {
   createEnvelope,
+  createJsonLogEntry,
   EVENT_ROUTING_KEYS_V1,
   type DomainEventV1,
 } from '@event-pipeline/shared';
@@ -33,6 +34,7 @@ interface UploadsReadRow {
 interface ProjectionOutboxRow {
   event_id: string;
   routing_key: string;
+  attempt_count: number;
   payload: unknown;
 }
 
@@ -51,9 +53,13 @@ export class PostgresProjectionProjectorAdapter
     });
 
     this.pool.on('error', (error: unknown) => {
-      this.logger.error(
-        `Postgres pool error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'projection-service',
+        message: 'Postgres pool error in projection projector.',
+        correlationId: 'system',
+        error,
+      })));
     });
   }
 
@@ -91,7 +97,7 @@ export class PostgresProjectionProjectorAdapter
   async findPendingOutboxEvents(limit: number): Promise<ProjectionOutboxPendingEvent[]> {
     const result = await this.pool.query<ProjectionOutboxRow>(
       `
-        select event_id, routing_key, payload
+        select event_id, routing_key, attempt_count, payload
         from projection_service.outbox_events
         where publish_status = 'pending'
         order by created_at asc
@@ -109,6 +115,7 @@ export class PostgresProjectionProjectorAdapter
         return {
           eventId: row.event_id,
           routingKey: row.routing_key,
+          attemptCount: row.attempt_count,
           envelope: row.payload as ProjectionOutboxPendingEvent['envelope'],
         };
       })
@@ -129,15 +136,20 @@ export class PostgresProjectionProjectorAdapter
     );
   }
 
-  async markOutboxEventPublishFailed(eventId: string, errorMessage: string): Promise<void> {
+  async markOutboxEventPublishFailed(
+    eventId: string,
+    errorMessage: string,
+    terminalFailure: boolean,
+  ): Promise<void> {
     await this.pool.query(
       `
         update projection_service.outbox_events
-        set attempt_count = attempt_count + 1,
+        set publish_status = case when $3 then 'failed' else publish_status end,
+            attempt_count = attempt_count + 1,
             last_error = left($2, 1000)
         where event_id = $1
       `,
-      [eventId, errorMessage],
+      [eventId, errorMessage, terminalFailure],
     );
   }
 

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import {
   applyRabbitMqRetryPolicy,
+  createJsonLogEntry,
   createRabbitMqConsumerJsonLogLine,
 } from '@event-pipeline/shared';
 import { HandleNotificationEventUseCase } from '../../application/notification/handle-notification-event.use-case';
@@ -37,20 +38,42 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
     const channel = await connection.createChannel();
 
     connection.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'notification-service',
+        message: 'AMQP connection error for notification consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for notification consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'notification-service',
+        message: 'AMQP connection closed for notification consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
     channel.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'notification-service',
+        message: 'AMQP channel error for notification consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for notification consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'notification-service',
+        message: 'AMQP channel closed for notification consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
 
     await channel.checkQueue(queue);
@@ -66,7 +89,14 @@ export class RabbitMqNotificationConsumerService implements OnModuleInit, OnModu
     this.connection = connection;
     this.channel = channel;
     this.consumerTag = consumed.consumerTag;
-    this.logger.log(`Consuming notification messages from queue "${queue}" with prefetch=${prefetch}.`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'notification-service',
+      message: 'Notification consumer started.',
+      correlationId: 'system',
+      queue,
+      metadata: { prefetch },
+    })));
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {

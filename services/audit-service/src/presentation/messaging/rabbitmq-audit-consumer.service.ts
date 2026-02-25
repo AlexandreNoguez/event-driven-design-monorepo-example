@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import {
   applyRabbitMqRetryPolicy,
+  createJsonLogEntry,
   createRabbitMqConsumerJsonLogLine,
 } from '@event-pipeline/shared';
 import { RecordAuditableEventUseCase } from '../../application/audit/record-auditable-event.use-case';
@@ -37,20 +38,42 @@ export class RabbitMqAuditConsumerService implements OnModuleInit, OnModuleDestr
     const channel = await connection.createChannel();
 
     connection.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'audit-service',
+        message: 'AMQP connection error for audit consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for audit consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'audit-service',
+        message: 'AMQP connection closed for audit consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
     channel.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'audit-service',
+        message: 'AMQP channel error for audit consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for audit consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'audit-service',
+        message: 'AMQP channel closed for audit consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
 
     await channel.checkQueue(queue);
@@ -66,7 +89,14 @@ export class RabbitMqAuditConsumerService implements OnModuleInit, OnModuleDestr
     this.connection = connection;
     this.channel = channel;
     this.consumerTag = consumed.consumerTag;
-    this.logger.log(`Consuming audit messages from queue "${queue}" with prefetch=${prefetch}.`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'audit-service',
+      message: 'Audit consumer started.',
+      correlationId: 'system',
+      queue,
+      metadata: { prefetch },
+    })));
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {

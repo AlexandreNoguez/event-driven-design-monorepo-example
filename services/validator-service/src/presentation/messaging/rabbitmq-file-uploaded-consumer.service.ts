@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import * as amqp from 'amqplib';
 import {
   applyRabbitMqRetryPolicy,
+  createJsonLogEntry,
   createRabbitMqConsumerJsonLogLine,
   type DomainEventV1,
 } from '@event-pipeline/shared';
@@ -37,20 +38,42 @@ export class RabbitMqFileUploadedConsumerService implements OnModuleInit, OnModu
     const channel = await connection.createChannel();
 
     connection.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'validator-service',
+        message: 'AMQP connection error for validator consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed for validator consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'validator-service',
+        message: 'AMQP connection closed for validator consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
     channel.on('error', (error: unknown) => {
-      this.logger.error(
-        `AMQP channel error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'validator-service',
+        message: 'AMQP channel error for validator consumer.',
+        correlationId: 'system',
+        queue,
+        error,
+      })));
     });
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed for validator consumer.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'validator-service',
+        message: 'AMQP channel closed for validator consumer.',
+        correlationId: 'system',
+        queue,
+      })));
     });
 
     await channel.checkQueue(queue);
@@ -66,7 +89,14 @@ export class RabbitMqFileUploadedConsumerService implements OnModuleInit, OnModu
     this.connection = connection;
     this.channel = channel;
     this.consumerTag = consumed.consumerTag;
-    this.logger.log(`Consuming validator messages from queue "${queue}" with prefetch=${prefetch}.`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'validator-service',
+      message: 'Validator consumer started.',
+      correlationId: 'system',
+      queue,
+      metadata: { prefetch },
+    })));
   }
 
   private async handleMessage(channel: amqp.Channel, message: amqp.ConsumeMessage): Promise<void> {

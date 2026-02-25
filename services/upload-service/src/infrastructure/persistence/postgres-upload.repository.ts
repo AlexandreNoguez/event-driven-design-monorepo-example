@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { Pool, type PoolClient } from 'pg';
 import type {
   OutboxPendingEvent,
@@ -10,6 +11,7 @@ import { UploadServiceConfigService } from '../config/upload-service-config.serv
 interface OutboxRow {
   event_id: string;
   routing_key: string;
+  attempt_count: number;
   payload: unknown;
 }
 
@@ -26,9 +28,13 @@ export class PostgresUploadRepository implements UploadRepositoryPort, OnModuleD
     });
 
     this.pool.on('error', (error) => {
-      this.logger.error(
-        `Postgres pool error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'upload-service',
+        message: 'Postgres pool error in upload repository.',
+        correlationId: 'system',
+        error,
+      })));
     });
   }
 
@@ -57,7 +63,7 @@ export class PostgresUploadRepository implements UploadRepositoryPort, OnModuleD
   async findPendingOutboxEvents(limit: number): Promise<OutboxPendingEvent[]> {
     const result = await this.pool.query<OutboxRow>(
       `
-        select event_id, routing_key, payload
+        select event_id, routing_key, attempt_count, payload
         from upload_service.outbox_events
         where publish_status = 'pending'
         order by created_at asc
@@ -75,6 +81,7 @@ export class PostgresUploadRepository implements UploadRepositoryPort, OnModuleD
         return {
           eventId: row.event_id,
           routingKey: row.routing_key,
+          attemptCount: row.attempt_count,
           envelope: row.payload as OutboxPendingEvent['envelope'],
         };
       })
@@ -95,15 +102,20 @@ export class PostgresUploadRepository implements UploadRepositoryPort, OnModuleD
     );
   }
 
-  async markOutboxEventPublishFailed(eventId: string, errorMessage: string): Promise<void> {
+  async markOutboxEventPublishFailed(
+    eventId: string,
+    errorMessage: string,
+    terminalFailure: boolean,
+  ): Promise<void> {
     await this.pool.query(
       `
         update upload_service.outbox_events
-        set attempt_count = attempt_count + 1,
+        set publish_status = case when $3 then 'failed' else publish_status end,
+            attempt_count = attempt_count + 1,
             last_error = left($2, 1000)
         where event_id = $1
       `,
-      [eventId, errorMessage],
+      [eventId, errorMessage, terminalFailure],
     );
   }
 
