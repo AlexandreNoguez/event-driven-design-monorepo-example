@@ -181,9 +181,10 @@
 - [x] Timeouts e limites (tamanho máximo, tipos suportados)
   - `api-gateway` valida `sizeBytes`/MIME permitido por config e aplica timeout em JWKS + RabbitMQ Management API
   - Workers ja possuem limites/tipos suportados configuraveis (validator/thumbnail/extractor)
-- [ ] Padronizar erros (códigos e mensagens) no gateway
+- [x] Padronizar erros (códigos e mensagens) no gateway
+  - `api-gateway` usa filtro HTTP global com envelope de erro padronizado (`code`, `message`, `statusCode`, `correlationId`, `path`, `method`)
 - [ ] Logs estruturados com `correlationId` em todos serviços
-  - Parcial: consumers AMQP dos workers + gateway command publisher + outbox pollers/publishers (`upload-service`/`projection-service`) emitem logs JSON com `correlationId` e contexto operacional
+  - Parcial: cobertura ampliada para consumers AMQP, use cases principais, publishers, outbox pollers e componentes operacionais do `api-gateway` (DLQ admin, command publisher, bootstrap, filtro HTTP)
 - [ ] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
   - [ ] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
   - [ ] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)

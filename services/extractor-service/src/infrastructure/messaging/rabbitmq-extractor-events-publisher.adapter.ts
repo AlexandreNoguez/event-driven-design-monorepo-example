@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { once } from 'node:events';
 import * as amqp from 'amqplib';
-import type { DomainEventV1 } from '@event-pipeline/shared';
+import { createJsonLogEntry, type DomainEventV1 } from '@event-pipeline/shared';
 import type { ExtractorEventsPublisherPort } from '../../application/extractor/ports/extractor-events-publisher.port';
 import { ExtractorServiceConfigService } from '../config/extractor-service-config.service';
 
@@ -42,6 +42,22 @@ export class RabbitMqExtractorEventsPublisherAdapter
     }
 
     await channel.waitForConfirms();
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'extractor-service',
+      message: 'Domain event published to RabbitMQ.',
+      correlationId: event.correlationId,
+      causationId: event.causationId,
+      messageId: event.messageId,
+      messageType: event.type,
+      routingKey,
+      fileId: typeof (event.payload as { fileId?: unknown })?.fileId === 'string'
+        ? (event.payload as { fileId?: string }).fileId
+        : undefined,
+      userId: typeof (event.payload as { userId?: unknown })?.userId === 'string'
+        ? (event.payload as { userId?: string }).userId
+        : undefined,
+    })));
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import type { AuditableEventWithRoutingKey } from '../../domain/audit/auditable-event';
 import { summarizePayloadForAudit } from '../../domain/audit/auditable-event';
 import {
@@ -32,9 +33,40 @@ export class RecordAuditableEventUseCase {
     });
 
     if (result.applied) {
-      this.logger.log(`Audited event ${input.event.type} (${input.event.messageId}).`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'audit-service',
+        message: 'Auditable event persisted.',
+        correlationId: input.event.correlationId,
+        causationId: input.event.causationId,
+        messageId: input.event.messageId,
+        messageType: input.event.type,
+        routingKey: input.routingKey,
+        fileId: typeof (input.event.payload as { fileId?: unknown })?.fileId === 'string'
+          ? (input.event.payload as { fileId?: string }).fileId
+          : undefined,
+        userId: typeof (input.event.payload as { userId?: unknown })?.userId === 'string'
+          ? (input.event.payload as { userId?: string }).userId
+          : undefined,
+      })));
     } else {
-      this.logger.log(`Skipped already audited event ${input.event.messageId} (${consumerName}).`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'audit-service',
+        message: 'Skipped already audited event.',
+        correlationId: input.event.correlationId,
+        causationId: input.event.causationId,
+        messageId: input.event.messageId,
+        messageType: input.event.type,
+        routingKey: input.routingKey,
+        fileId: typeof (input.event.payload as { fileId?: unknown })?.fileId === 'string'
+          ? (input.event.payload as { fileId?: string }).fileId
+          : undefined,
+        userId: typeof (input.event.payload as { userId?: unknown })?.userId === 'string'
+          ? (input.event.payload as { userId?: string }).userId
+          : undefined,
+        metadata: { consumerName },
+      })));
     }
 
     return result;

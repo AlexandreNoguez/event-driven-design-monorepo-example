@@ -493,6 +493,17 @@ sequenceDiagram
 - Status atual: consumers AMQP dos workers emitem logs JSON com contexto de fila/routing key/retry
 - Avanco atual: gateway (publicacao de commands e DLQ admin) e outbox/publishers de `upload-service`/`projection-service` tambem emitem logs JSON estruturados
 
+**RNF-04.1** Erros HTTP padronizados (gateway)
+
+- `api-gateway` aplica filtro global de excecao com envelope padronizado:
+  - `error.code`
+  - `error.message`
+  - `statusCode`
+  - `correlationId`
+  - `path`
+  - `method`
+- O gateway tambem registra erros HTTP em log JSON (warn/erro conforme status)
+
 **RNF-05** Segurança local
 
 - JWT verificado no gateway

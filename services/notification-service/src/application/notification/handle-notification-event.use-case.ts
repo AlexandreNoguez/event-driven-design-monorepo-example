@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import {
   buildNotificationTemplate,
   resolveRecipientForEvent,
@@ -31,7 +32,18 @@ export class HandleNotificationEventUseCase {
     const event = input.event;
 
     if (await this.repository.hasProcessedEvent(event.messageId, consumerName)) {
-      this.logger.log(`Skipping already processed notification event ${event.messageId} (${consumerName}).`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'notification-service',
+        message: 'Skipped already processed notification event.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        userId: event.payload.userId,
+        metadata: { consumerName },
+      })));
       return { skipped: true, sent: false };
     }
 
@@ -59,9 +71,22 @@ export class HandleNotificationEventUseCase {
         sourceProducer: event.producer,
       });
 
-      this.logger.log(
-        `Notification for ${event.type} (${event.messageId}) was already sent previously. Marked as processed.`,
-      );
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'notification-service',
+        message: 'Notification already sent previously; marking event as processed.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        userId: event.payload.userId,
+        metadata: {
+          consumerName,
+          recipient,
+          templateKey: template.templateKey,
+        },
+      })));
       return { skipped: true, sent: false };
     }
 
@@ -87,7 +112,22 @@ export class HandleNotificationEventUseCase {
         sourceProducer: event.producer,
       });
 
-      this.logger.log(`Notification sent for ${event.type} (${event.messageId}) to ${recipient}.`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'notification-service',
+        message: 'Notification sent.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        routingKey: input.routingKey,
+        fileId: event.payload.fileId,
+        userId: event.payload.userId,
+        metadata: {
+          recipient,
+          templateKey: template.templateKey,
+        },
+      })));
       return { skipped: false, sent: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

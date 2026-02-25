@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   createEnvelope,
+  createJsonLogEntry,
   generateId,
   type DomainEventV1,
 } from '@event-pipeline/shared';
@@ -42,7 +43,17 @@ export class HandleFileUploadedUseCase {
     const consumerName = this.config.consumerName;
 
     if (await this.processedEvents.hasProcessedEvent(event.messageId, consumerName)) {
-      this.logger.log(`Skipping already processed event ${event.messageId} (${consumerName}).`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'validator-service',
+        message: 'Skipped already processed validator event.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        metadata: { consumerName },
+      })));
       return { skipped: true };
     }
 
@@ -102,7 +113,22 @@ export class HandleFileUploadedUseCase {
       sourceProducer: event.producer,
     });
 
-    this.logger.log(`Processed ${event.type} (${event.messageId}) -> ${nextEvent.type}`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'validator-service',
+      message: 'Validator processed event and published result.',
+      correlationId: event.correlationId,
+      causationId: event.messageId,
+      messageId: nextEvent.messageId,
+      messageType: nextEvent.type,
+      fileId: event.payload.fileId,
+      userId: event.payload.userId,
+      metadata: {
+        sourceEventType: event.type,
+        sourceEventId: event.messageId,
+        publishedRoutingKey: routingKey,
+      },
+    })));
     return {
       skipped: false,
       publishedType: nextEvent.type,

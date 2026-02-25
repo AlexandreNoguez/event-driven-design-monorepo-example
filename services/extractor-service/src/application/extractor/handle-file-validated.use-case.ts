@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   createEnvelope,
+  createJsonLogEntry,
   generateId,
   type DomainEventV1,
 } from '@event-pipeline/shared';
@@ -51,7 +52,17 @@ export class HandleFileValidatedUseCase {
     const consumerName = this.config.consumerName;
 
     if (await this.processedEvents.hasProcessedEvent(event.messageId, consumerName)) {
-      this.logger.log(`Skipping already processed event ${event.messageId} (${consumerName}).`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'extractor-service',
+        message: 'Skipped already processed extractor event.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        metadata: { consumerName },
+      })));
       return { skipped: true };
     }
 
@@ -68,11 +79,18 @@ export class HandleFileValidatedUseCase {
       try {
         imageMetadata = await this.imageMetadataReader.tryReadImageMetadata(buffer);
       } catch (error) {
-        this.logger.warn(
-          `Unable to read image metadata for file=${event.payload.fileId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
+        this.logger.warn(JSON.stringify(createJsonLogEntry({
+          level: 'warn',
+          service: 'extractor-service',
+          message: 'Unable to read image metadata; continuing with base metadata.',
+          correlationId: event.correlationId,
+          causationId: event.causationId,
+          messageId: event.messageId,
+          messageType: event.type,
+          fileId: event.payload.fileId,
+          userId: event.payload.userId,
+          error,
+        })));
       }
     }
 
@@ -112,7 +130,21 @@ export class HandleFileValidatedUseCase {
       sourceProducer: event.producer,
     });
 
-    this.logger.log(`Processed ${event.type} (${event.messageId}) -> ${nextEvent.type}`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'extractor-service',
+      message: 'Metadata extracted and event published.',
+      correlationId: event.correlationId,
+      causationId: event.messageId,
+      messageId: nextEvent.messageId,
+      messageType: nextEvent.type,
+      fileId: event.payload.fileId,
+      userId: event.payload.userId,
+      metadata: {
+        sourceEventId: event.messageId,
+        sourceEventType: event.type,
+      },
+    })));
     return {
       skipped: false,
       publishedType: nextEvent.type,

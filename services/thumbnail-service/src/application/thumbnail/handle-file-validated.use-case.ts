@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   createEnvelope,
+  createJsonLogEntry,
   generateId,
   type DomainEventV1,
 } from '@event-pipeline/shared';
@@ -51,7 +52,17 @@ export class HandleFileValidatedUseCase {
     const consumerName = this.config.consumerName;
 
     if (await this.processedEvents.hasProcessedEvent(event.messageId, consumerName)) {
-      this.logger.log(`Skipping already processed event ${event.messageId} (${consumerName}).`);
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'thumbnail-service',
+        message: 'Skipped already processed thumbnail event.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        metadata: { consumerName },
+      })));
       return { skipped: true };
     }
 
@@ -65,9 +76,21 @@ export class HandleFileValidatedUseCase {
         sourceProducer: event.producer,
       });
 
-      this.logger.warn(
-        `Skipping thumbnail generation for unsupported MIME ${event.payload.contentType} (file=${event.payload.fileId}).`,
-      );
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'thumbnail-service',
+        message: 'Skipping thumbnail generation for unsupported MIME.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        userId: event.payload.userId,
+        metadata: {
+          contentType: event.payload.contentType,
+          consumerName,
+        },
+      })));
       return { skipped: true };
     }
 
@@ -126,7 +149,21 @@ export class HandleFileValidatedUseCase {
       sourceProducer: event.producer,
     });
 
-    this.logger.log(`Processed ${event.type} (${event.messageId}) -> ${nextEvent.type}`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'thumbnail-service',
+      message: 'Thumbnail generated and event published.',
+      correlationId: event.correlationId,
+      causationId: event.messageId,
+      messageId: nextEvent.messageId,
+      messageType: nextEvent.type,
+      fileId: event.payload.fileId,
+      userId: event.payload.userId,
+      metadata: {
+        sourceEventId: event.messageId,
+        sourceEventType: event.type,
+      },
+    })));
     return {
       skipped: false,
       publishedType: nextEvent.type,
