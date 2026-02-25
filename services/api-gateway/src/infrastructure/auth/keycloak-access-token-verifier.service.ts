@@ -111,11 +111,23 @@ export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
       return cached.keys;
     }
 
-    const response = await fetch(jwksUrl, {
-      headers: {
-        accept: 'application/json',
-      },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.jwtJwksFetchTimeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(jwksUrl, {
+        headers: {
+          accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      throw new UnauthorizedException(`Unable to fetch JWKS (${message}).`);
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new UnauthorizedException(`Unable to fetch JWKS (${response.status}).`);

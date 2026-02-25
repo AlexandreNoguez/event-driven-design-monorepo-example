@@ -478,11 +478,20 @@ sequenceDiagram
 - Re-drive administrativo via endpoints protegidos por role `admin` no `api-gateway`
 - Politica MVP implementada nos consumers: ate `3` tentativas (via `x-death`) e parking manual em `q.*.dlq`
 
+**RNF-03.1** Timeouts e limites (MVP)
+
+- `api-gateway` valida limite de upload e MIME permitido por configuracao (`API_GATEWAY_UPLOAD_MAX_SIZE_BYTES`, `API_GATEWAY_ALLOWED_MIME_TYPES`)
+- Timeouts configuraveis para chamadas externas no gateway:
+  - `JWT_JWKS_FETCH_TIMEOUT_MS`
+  - `API_GATEWAY_RABBITMQ_MANAGEMENT_TIMEOUT_MS`
+- Workers mantem limites/tipos suportados por config (validator/thumbnail/extractor)
+
 **RNF-04** Observabilidade básica
 
 - Logs estruturados com `correlationId`
 - Métricas (opcional v0.2)
 - Status atual: consumers AMQP dos workers emitem logs JSON com contexto de fila/routing key/retry
+- Avanco atual: gateway (publicacao de commands e DLQ admin) e outbox/publishers de `upload-service`/`projection-service` tambem emitem logs JSON estruturados
 
 **RNF-05** Segurança local
 

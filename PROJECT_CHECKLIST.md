@@ -178,10 +178,12 @@
   - Endpoints admin no `api-gateway`: listagem, peek e re-drive de filas `q.*.dlq` conhecidas (RabbitMQ Management API)
 - [x] Regras de retry (ex: 3 tentativas + DLQ)
   - Consumers dos workers aplicam politica com `x-death`: ate 3 tentativas e parking manual em `dlq.q.X` (routing key `parking`)
-- [ ] Timeouts e limites (tamanho máximo, tipos suportados)
+- [x] Timeouts e limites (tamanho máximo, tipos suportados)
+  - `api-gateway` valida `sizeBytes`/MIME permitido por config e aplica timeout em JWKS + RabbitMQ Management API
+  - Workers ja possuem limites/tipos suportados configuraveis (validator/thumbnail/extractor)
 - [ ] Padronizar erros (códigos e mensagens) no gateway
 - [ ] Logs estruturados com `correlationId` em todos serviços
-  - Parcial: consumers AMQP dos workers agora emitem logs JSON com `correlationId`, `queue`, `routingKey`, `messageType` e contexto de retry/DLQ
+  - Parcial: consumers AMQP dos workers + gateway command publisher + outbox pollers/publishers (`upload-service`/`projection-service`) emitem logs JSON com `correlationId` e contexto operacional
 - [ ] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
   - [ ] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
   - [ ] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)

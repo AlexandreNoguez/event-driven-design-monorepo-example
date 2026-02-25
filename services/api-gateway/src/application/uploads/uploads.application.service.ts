@@ -5,8 +5,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import type { AuthenticatedUser } from '../../domain/auth/authenticated-user';
 import type { ApiUploadRecord } from '../../domain/uploads/upload-record';
+import { ApiGatewayConfigService } from '../../infrastructure/config/api-gateway-config.service';
 import type {
   ReprocessFileRequestedCommandPayload,
   UploadRequestedCommandPayload,
@@ -69,6 +71,7 @@ export class UploadsApplicationService {
     private readonly publisher: CommandPublisher,
     @Inject(UPLOAD_OBJECT_STORAGE)
     private readonly uploadObjectStorage: UploadObjectStorage,
+    private readonly config: ApiGatewayConfigService,
   ) {}
 
   async requestUpload(input: RequestUploadInput) {
@@ -93,7 +96,18 @@ export class UploadsApplicationService {
       sizeBytes: parsed.sizeBytes,
     });
 
-    this.logger.log(`Presigned upload URL issued for fileId=${fileId}`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'api-gateway',
+      message: 'Presigned upload URL issued.',
+      correlationId,
+      fileId,
+      userId: input.user.subject,
+      metadata: {
+        contentType: parsed.contentType,
+        sizeBytes: parsed.sizeBytes,
+      },
+    })));
 
     return {
       fileId: record.fileId,
@@ -182,7 +196,21 @@ export class UploadsApplicationService {
       sizeBytes: record.sizeBytes,
     });
 
-    this.logger.log(`UploadRequested.v1 published for fileId=${record.fileId} after storage confirmation`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'api-gateway',
+      message: 'UploadRequested.v1 published after storage confirmation.',
+      correlationId: nextRecord.correlationId,
+      fileId: record.fileId,
+      userId: record.userId,
+      messageType: envelope.type,
+      routingKey: 'commands.upload.requested.v1',
+      metadata: {
+        bucket: stat.bucket,
+        objectKey: stat.objectKey,
+        sizeBytes: stat.sizeBytes,
+      },
+    })));
 
     return {
       fileId: nextRecord.fileId,
@@ -248,7 +276,19 @@ export class UploadsApplicationService {
       reason,
     });
 
-    this.logger.log(`ReprocessFileRequested.v1 published for fileId=${fileId}`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'api-gateway',
+      message: 'ReprocessFileRequested.v1 published.',
+      correlationId: record.correlationId,
+      fileId,
+      userId: input.requester.subject,
+      messageType: envelope.type,
+      routingKey: 'commands.file.reprocess.v1',
+      metadata: {
+        reprocessCount: record.reprocessCount,
+      },
+    })));
 
     return {
       fileId: record.fileId,
@@ -279,9 +319,22 @@ export class UploadsApplicationService {
 
   private parseCreateUploadInput(input: RequestUploadInput) {
     const fileName = normalizeRequiredString(input.fileName, 'fileName');
-    const contentType = normalizeRequiredString(input.contentType, 'contentType');
+    const contentType = normalizeRequiredString(input.contentType, 'contentType').toLowerCase();
     const sizeBytes = normalizePositiveInteger(input.sizeBytes, 'sizeBytes');
     const fileId = this.optionalString(input.fileId);
+
+    if (sizeBytes > this.config.uploadMaxSizeBytes) {
+      throw new BadRequestException(
+        `Field "sizeBytes" exceeds the configured limit (${this.config.uploadMaxSizeBytes} bytes).`,
+      );
+    }
+
+    const allowedMimeTypes = this.config.allowedUploadMimeTypes;
+    if (allowedMimeTypes.length > 0 && !allowedMimeTypes.includes(contentType)) {
+      throw new BadRequestException(
+        `Field "contentType" is not allowed. Allowed types: ${allowedMimeTypes.join(', ')}.`,
+      );
+    }
 
     return {
       fileId,

@@ -9,6 +9,7 @@ const DEFAULTS = {
   rabbitmqManagementUser: 'event',
   rabbitmqManagementPassword: 'event',
   rabbitmqVhost: '/',
+  rabbitmqManagementTimeoutMs: 5000,
   minioEndpoint: 'localhost',
   minioApiPort: 9000,
   minioUseSsl: false,
@@ -18,9 +19,12 @@ const DEFAULTS = {
   minioUploadsBucket: 'uploads',
   uploadObjectKeyPrefix: 'raw',
   presignedExpiresSeconds: 900,
+  uploadMaxSizeBytes: 20 * 1024 * 1024,
+  allowedUploadMimeTypes: 'image/png,image/jpeg,image/webp,application/pdf',
   authDevBypass: false,
   jwtAudience: '',
   jwtJwksCacheTtlMs: 300000,
+  jwtJwksFetchTimeoutMs: 5000,
 } as const;
 
 export const API_GATEWAY_ENV_FILE_PATHS = [
@@ -57,6 +61,12 @@ export class ApiGatewayConfigService {
   get rabbitmqVhost(): string {
     return this.config.get<string>('RABBITMQ_VHOST', DEFAULTS.rabbitmqVhost);
   }
+  get rabbitmqManagementTimeoutMs(): number {
+    return this.config.get<number>(
+      'API_GATEWAY_RABBITMQ_MANAGEMENT_TIMEOUT_MS',
+      DEFAULTS.rabbitmqManagementTimeoutMs,
+    );
+  }
   get minioEndpoint(): string { return this.config.get<string>('MINIO_ENDPOINT', DEFAULTS.minioEndpoint); }
   get minioApiPort(): number { return this.config.get<number>('MINIO_API_PORT', DEFAULTS.minioApiPort); }
   get minioUseSsl(): boolean { return this.config.get<boolean>('MINIO_USE_SSL', DEFAULTS.minioUseSsl); }
@@ -77,6 +87,16 @@ export class ApiGatewayConfigService {
       DEFAULTS.presignedExpiresSeconds,
     );
   }
+  get uploadMaxSizeBytes(): number {
+    return this.config.get<number>('API_GATEWAY_UPLOAD_MAX_SIZE_BYTES', DEFAULTS.uploadMaxSizeBytes);
+  }
+  get allowedUploadMimeTypes(): string[] {
+    const value = this.config.get<string>(
+      'API_GATEWAY_ALLOWED_MIME_TYPES',
+      DEFAULTS.allowedUploadMimeTypes,
+    );
+    return parseCsvList(value);
+  }
   get authDevBypassEnabled(): boolean {
     return this.config.get<boolean>('API_GATEWAY_AUTH_DEV_BYPASS', DEFAULTS.authDevBypass);
   }
@@ -91,6 +111,9 @@ export class ApiGatewayConfigService {
   }
   get jwtJwksCacheTtlMs(): number {
     return this.config.get<number>('JWT_JWKS_CACHE_TTL_MS', DEFAULTS.jwtJwksCacheTtlMs);
+  }
+  get jwtJwksFetchTimeoutMs(): number {
+    return this.config.get<number>('JWT_JWKS_FETCH_TIMEOUT_MS', DEFAULTS.jwtJwksFetchTimeoutMs);
   }
 }
 
@@ -109,6 +132,11 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
     optionalString(raw.RABBITMQ_MANAGEMENT_PASSWORD) ??
     deriveRabbitMqManagementPassword(env.RABBITMQ_URL as string);
   env.RABBITMQ_VHOST = optionalString(raw.RABBITMQ_VHOST) ?? DEFAULTS.rabbitmqVhost;
+  env.API_GATEWAY_RABBITMQ_MANAGEMENT_TIMEOUT_MS = toPositiveInt(
+    raw.API_GATEWAY_RABBITMQ_MANAGEMENT_TIMEOUT_MS,
+    DEFAULTS.rabbitmqManagementTimeoutMs,
+    'API_GATEWAY_RABBITMQ_MANAGEMENT_TIMEOUT_MS',
+  );
   env.MINIO_ENDPOINT = optionalString(raw.MINIO_ENDPOINT) ?? DEFAULTS.minioEndpoint;
   env.MINIO_API_PORT = toPositiveInt(raw.MINIO_API_PORT, DEFAULTS.minioApiPort, 'MINIO_API_PORT');
   env.MINIO_USE_SSL = toBoolean(raw.MINIO_USE_SSL, DEFAULTS.minioUseSsl, 'MINIO_USE_SSL');
@@ -122,6 +150,13 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
     DEFAULTS.presignedExpiresSeconds,
     'API_GATEWAY_UPLOAD_PRESIGNED_EXPIRES_SECONDS',
   );
+  env.API_GATEWAY_UPLOAD_MAX_SIZE_BYTES = toPositiveInt(
+    raw.API_GATEWAY_UPLOAD_MAX_SIZE_BYTES,
+    DEFAULTS.uploadMaxSizeBytes,
+    'API_GATEWAY_UPLOAD_MAX_SIZE_BYTES',
+  );
+  env.API_GATEWAY_ALLOWED_MIME_TYPES =
+    optionalString(raw.API_GATEWAY_ALLOWED_MIME_TYPES) ?? DEFAULTS.allowedUploadMimeTypes;
   env.API_GATEWAY_AUTH_DEV_BYPASS = toBoolean(
     raw.API_GATEWAY_AUTH_DEV_BYPASS,
     DEFAULTS.authDevBypass,
@@ -133,6 +168,11 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
     raw.JWT_JWKS_CACHE_TTL_MS,
     DEFAULTS.jwtJwksCacheTtlMs,
     'JWT_JWKS_CACHE_TTL_MS',
+  );
+  env.JWT_JWKS_FETCH_TIMEOUT_MS = toPositiveInt(
+    raw.JWT_JWKS_FETCH_TIMEOUT_MS,
+    DEFAULTS.jwtJwksFetchTimeoutMs,
+    'JWT_JWKS_FETCH_TIMEOUT_MS',
   );
 
   const devBypass = env.API_GATEWAY_AUTH_DEV_BYPASS as boolean;
@@ -201,4 +241,11 @@ function toBoolean(value: unknown, fallback: boolean, name: string): boolean {
   if (normalized === 'true') return true;
   if (normalized === 'false') return false;
   throw new Error(`[api-gateway] ${name} must be "true" or "false".`);
+}
+
+function parseCsvList(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }

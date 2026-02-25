@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import {
   createFileUploadedEventEnvelope,
   type PersistUploadAndOutboxInput,
@@ -33,8 +34,20 @@ export class HandleUploadRequestedUseCase {
     };
 
     await this.repository.persistUploadAndOutbox(input);
-    this.logger.log(
-      `UploadRequested.v1 persisted (file=${command.payload.fileId}) and outbox event queued.`,
-    );
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'upload-service',
+      message: 'UploadRequested.v1 persisted and outbox event queued.',
+      correlationId: command.correlationId,
+      causationId: command.causationId,
+      messageId: command.messageId,
+      messageType: command.type,
+      fileId: command.payload.fileId,
+      userId: command.payload.userId,
+      metadata: {
+        nextEventType: fileUploadedEvent.type,
+        nextRoutingKey: 'files.uploaded.v1',
+      },
+    })));
   }
 }

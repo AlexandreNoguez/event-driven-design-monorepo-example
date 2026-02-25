@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { resolveKnownDlqQueueTarget } from '../../domain/admin/dlq-queue';
 import {
   DLQ_ADMIN,
@@ -58,9 +59,22 @@ export class AdminDlqApplicationService {
       requestedByUserName: input.requestedByUserName,
     });
 
-    this.logger.warn(
-      `DLQ re-drive requested for ${target.dlqQueue}: moved=${result.moved}, failed=${result.failed}, requestedBy=${input.requestedByUserName}`,
-    );
+    this.logger.warn(JSON.stringify(createJsonLogEntry({
+      level: 'warn',
+      service: 'api-gateway',
+      message: 'DLQ re-drive requested.',
+      correlationId: 'system',
+      userId: input.requestedByUserId,
+      queue: target.dlqQueue,
+      metadata: {
+        requestedByUserName: input.requestedByUserName,
+        moved: result.moved,
+        failed: result.failed,
+        requested: result.requested,
+        fetched: result.fetched,
+        retryExchange: result.retryExchange,
+      },
+    })));
 
     return result;
   }

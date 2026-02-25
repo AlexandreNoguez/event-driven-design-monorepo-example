@@ -193,6 +193,7 @@ Status atual:
 Status atual:
 - `17` parcial (`upload-service` e `projection-service` publicando via outbox; falta padronizar retry operacional nos demais produtores)
 - `18` parcial (DLQ visível + endpoints admin de re-drive no `api-gateway`; retry dos consumers com `x-death` + parking manual em DLQ implementado; falta endurecer estrategia e fluxo de re-drive)
+- `M4` avancando em observabilidade: logs JSON estruturados ja cobrem consumers AMQP e parte do fluxo de publish/outbox/gateway
 
 ### Issue 17: Outbox completo com retry
 - Labels: `backend`, `observability`

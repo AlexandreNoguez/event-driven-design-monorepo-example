@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { PublishUploadOutboxBatchService } from '../../application/uploads/publish-upload-outbox-batch.service';
 import { UploadServiceConfigService } from '../../infrastructure/config/upload-service-config.service';
 
@@ -19,7 +20,15 @@ export class UploadOutboxPollerService implements OnModuleInit, OnModuleDestroy 
     }, intervalMs);
 
     void this.safePublishPendingBatch();
-    this.logger.log(`Outbox publisher started with poll interval ${intervalMs}ms.`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'upload-service',
+      message: 'Upload outbox poller started.',
+      correlationId: 'system',
+      metadata: {
+        intervalMs,
+      },
+    })));
   }
 
   onModuleDestroy(): void {
@@ -33,10 +42,13 @@ export class UploadOutboxPollerService implements OnModuleInit, OnModuleDestroy 
     try {
       await this.publishUploadOutboxBatchService.publishPendingBatch();
     } catch (error) {
-      this.logger.error(
-        `Outbox polling loop error: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'upload-service',
+        message: 'Upload outbox polling loop error.',
+        correlationId: 'system',
+        error,
+      })));
     }
   }
 }

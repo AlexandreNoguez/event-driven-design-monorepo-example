@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { once } from 'node:events';
 import * as amqp from 'amqplib';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import type {
   CommandEnvelopeLike,
   CommandPublisher,
@@ -41,6 +42,18 @@ export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModu
     }
 
     await channel.waitForConfirms();
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'api-gateway',
+      message: 'Command published to RabbitMQ.',
+      correlationId: envelope.correlationId,
+      causationId: envelope.causationId,
+      messageId: envelope.messageId,
+      messageType: envelope.type,
+      routingKey,
+      fileId: tryReadPayloadString(envelope.payload, 'fileId'),
+      userId: tryReadPayloadString(envelope.payload, 'userId'),
+    })));
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -68,24 +81,44 @@ export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModu
     const channel = await connection.createConfirmChannel();
 
     connection.on('error', (error) => {
-      this.logger.error(
-        `AMQP connection error: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'api-gateway',
+        message: 'AMQP command publisher connection error.',
+        correlationId: 'system',
+        error,
+      })));
       this.resetChannelState();
     });
 
     connection.on('close', () => {
-      this.logger.warn('AMQP connection closed.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'api-gateway',
+        message: 'AMQP command publisher connection closed.',
+        correlationId: 'system',
+      })));
       this.resetChannelState();
     });
 
     channel.on('error', (error) => {
-      this.logger.error(`AMQP channel error: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'api-gateway',
+        message: 'AMQP command publisher channel error.',
+        correlationId: 'system',
+        error,
+      })));
       this.resetChannelState();
     });
 
     channel.on('close', () => {
-      this.logger.warn('AMQP channel closed.');
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'api-gateway',
+        message: 'AMQP command publisher channel closed.',
+        correlationId: 'system',
+      })));
       this.resetChannelState();
     });
 
@@ -122,4 +155,12 @@ export class RabbitMqCommandPublisherAdapter implements CommandPublisher, OnModu
       // no-op during shutdown
     }
   }
+}
+
+function tryReadPayloadString(value: unknown, key: string): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record[key] === 'string' ? (record[key] as string) : undefined;
 }

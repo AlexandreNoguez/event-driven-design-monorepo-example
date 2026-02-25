@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import { PublishProjectionOutboxBatchService } from '../../application/projection/publish-projection-outbox-batch.service';
 import { ProjectionServiceConfigService } from '../../infrastructure/config/projection-service-config.service';
 
@@ -19,7 +20,15 @@ export class ProjectionOutboxPollerService implements OnModuleInit, OnModuleDest
     }, intervalMs);
 
     void this.safePublishPendingBatch();
-    this.logger.log(`Outbox publisher started with poll interval ${intervalMs}ms.`);
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'projection-service',
+      message: 'Projection outbox poller started.',
+      correlationId: 'system',
+      metadata: {
+        intervalMs,
+      },
+    })));
   }
 
   onModuleDestroy(): void {
@@ -33,10 +42,13 @@ export class ProjectionOutboxPollerService implements OnModuleInit, OnModuleDest
     try {
       await this.publishProjectionOutboxBatchService.publishPendingBatch();
     } catch (error) {
-      this.logger.error(
-        `Outbox polling loop error: ${error instanceof Error ? error.message : String(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'projection-service',
+        message: 'Projection outbox polling loop error.',
+        correlationId: 'system',
+        error,
+      })));
     }
   }
 }

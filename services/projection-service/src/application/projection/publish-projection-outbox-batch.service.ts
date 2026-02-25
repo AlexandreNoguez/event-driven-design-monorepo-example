@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import {
   PROJECTION_EVENTS_PUBLISHER_PORT,
   type ProjectionEventsPublisherPort,
@@ -35,11 +36,42 @@ export class PublishProjectionOutboxBatchService {
         try {
           await this.eventsPublisher.publishDomainEvent(event.envelope, event.routingKey);
           await this.repository.markOutboxEventPublished(event.eventId);
-          this.logger.log(`Published outbox event ${event.eventId} (${event.routingKey}).`);
+          this.logger.log(JSON.stringify(createJsonLogEntry({
+            level: 'info',
+            service: 'projection-service',
+            message: 'Projection outbox event published.',
+            correlationId: event.envelope.correlationId,
+            causationId: event.envelope.causationId,
+            messageId: event.envelope.messageId,
+            messageType: event.envelope.type,
+            routingKey: event.routingKey,
+            fileId: typeof (event.envelope.payload as { fileId?: unknown })?.fileId === 'string'
+              ? (event.envelope.payload as { fileId?: string }).fileId
+              : undefined,
+            metadata: {
+              outboxEventId: event.eventId,
+            },
+          })));
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           await this.repository.markOutboxEventPublishFailed(event.eventId, message);
-          this.logger.error(`Failed to publish outbox event ${event.eventId}: ${message}`);
+          this.logger.error(JSON.stringify(createJsonLogEntry({
+            level: 'error',
+            service: 'projection-service',
+            message: 'Failed to publish projection outbox event.',
+            correlationId: event.envelope.correlationId,
+            causationId: event.envelope.causationId,
+            messageId: event.envelope.messageId,
+            messageType: event.envelope.type,
+            routingKey: event.routingKey,
+            fileId: typeof (event.envelope.payload as { fileId?: unknown })?.fileId === 'string'
+              ? (event.envelope.payload as { fileId?: string }).fileId
+              : undefined,
+            metadata: {
+              outboxEventId: event.eventId,
+            },
+            error,
+          })));
         }
       }
     } finally {

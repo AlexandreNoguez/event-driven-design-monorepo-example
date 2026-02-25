@@ -1,4 +1,5 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import type {
   DlqAdminPort,
   DlqPeekInput,
@@ -106,7 +107,18 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown publish error.';
         failures.push({ index, reason });
-        this.logger.error(`DLQ re-drive publish failed for ${target.dlqQueue}#${index}: ${reason}`);
+        this.logger.error(JSON.stringify(createJsonLogEntry({
+          level: 'error',
+          service: 'api-gateway',
+          message: 'DLQ re-drive publish failed.',
+          correlationId: 'system',
+          queue: target.dlqQueue,
+          metadata: {
+            index,
+            retryExchange: target.retryExchange,
+          },
+          error,
+        })));
       }
     }
 
@@ -201,15 +213,27 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
   }
 
   private async requestJson<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
-    const response = await fetch(`${this.config.rabbitmqManagementApiBaseUrl}${path}`, {
-      method,
-      headers: {
-        accept: 'application/json',
-        authorization: this.basicAuthHeader,
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.rabbitmqManagementTimeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.config.rabbitmqManagementApiBaseUrl}${path}`, {
+        method,
+        headers: {
+          accept: 'application/json',
+          authorization: this.basicAuthHeader,
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      throw new ServiceUnavailableException(`RabbitMQ Management API request failed (${message}).`);
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -236,6 +260,7 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
     ).toString('base64');
     return `Basic ${token}`;
   }
+
 }
 
 function safeParseJsonPayload(payload: unknown): unknown {
@@ -257,4 +282,3 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function truncate(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max)}...`;
 }
-

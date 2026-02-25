@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { once } from 'node:events';
 import * as amqp from 'amqplib';
+import { createJsonLogEntry } from '@event-pipeline/shared';
 import type { UploadEventsPublisherPort } from '../../application/uploads/ports/events-publisher.port';
 import type { FileUploadedEventEnvelope } from '../../domain/uploads/upload-message.types';
 import { UploadServiceConfigService } from '../config/upload-service-config.service';
@@ -43,6 +44,18 @@ export class RabbitMqUploadEventsPublisherAdapter implements UploadEventsPublish
     }
 
     await channel.waitForConfirms();
+    this.logger.log(JSON.stringify(createJsonLogEntry({
+      level: 'info',
+      service: 'upload-service',
+      message: 'Domain event published to RabbitMQ.',
+      correlationId: envelope.correlationId,
+      causationId: envelope.causationId,
+      messageId: envelope.messageId,
+      messageType: envelope.type,
+      routingKey,
+      fileId: envelope.payload.fileId,
+      userId: envelope.payload.userId,
+    })));
   }
 
   async onModuleDestroy(): Promise<void> {
