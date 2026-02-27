@@ -16,9 +16,11 @@
     "test": "pnpm -r --if-present test",
     "docker:up": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up -d --build",
     "docker:down": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml down",
+    "docker:restart": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml restart",
     "docker:up:infra": "docker compose -f infra/docker-compose.yml up -d",
     "docker:down:infra": "docker compose -f infra/docker-compose.yml down",
-    "docker:logs": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml logs -f --tail=100"
+    "docker:logs": "docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml logs -f --tail=100",
+    "smoke": "bash scripts/smoke.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
