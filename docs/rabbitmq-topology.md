@@ -83,17 +83,21 @@ Filas aceitas no MVP:
 
 Estrategia de re-drive implementada (MVP):
 
-- Leitura da DLQ via RabbitMQ Management API (`queue/get`)
+- Leitura da DLQ via AMQP (`basic.get`) com `ack` manual
 - Republicacao para o exchange de retry da fila (`retry.q.X`) com routing key `retry`
-- Adicao de headers de auditoria (`x-redriven-*`)
+- Confirmacao de publish via `ConfirmChannel` (`waitForConfirms`)
+- `ack` da mensagem na DLQ somente apos confirmacao de publish
+- Em falha de publish: `nack requeue=true` na propria DLQ (sem perda de mensagem)
+- Adicao de headers de auditoria (`x-redriven-*`, incluindo `x-redrive-operation-correlation-id`)
+- Publicacao do evento operacional `DlqRedriveCompleted.v1` (`operations.dlq.redrive.completed.v1`) com `correlationId` da operacao de re-drive
 
 Observabilidade atual dos consumers:
 
 - Falhas de processamento, retries e parking em DLQ emitem logs JSON (com `correlationId`, `queue`, `routingKey`, `messageType` e tentativas) nos workers.
 
-Caveat do MVP:
+Caveat atual:
 
-- O re-drive via Management API usa `ack_requeue_false` ao ler da DLQ. Se a republicacao falhar apos a retirada da mensagem, pode ser necessario recovery manual (logs/audit). Para v0.2, evoluir para fluxo mais robusto (ex.: consumer admin dedicado + outbox/re-drive seguro).
+- O endpoint de re-drive processa mensagens em lote sequencial e interrompe o lote no primeiro erro de publish para priorizar seguranca operacional. Em caso de falha, basta repetir a operacao.
 
 ## Como reaplicar a topologia após alterar definitions
 

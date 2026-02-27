@@ -29,11 +29,13 @@ export interface DlqPeekInput {
 export interface DlqRedriveInput {
   queue: string;
   limit: number;
+  operationCorrelationId: string;
   requestedByUserId: string;
   requestedByUserName: string;
 }
 
 export interface DlqRedriveResult {
+  operationCorrelationId: string;
   queue: string;
   mainQueue: string;
   retryExchange: string;
@@ -52,4 +54,3 @@ export interface DlqAdminPort {
 }
 
 export const DLQ_ADMIN = Symbol('DLQ_ADMIN');
-

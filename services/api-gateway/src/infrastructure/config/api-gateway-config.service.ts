@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 const DEFAULTS = {
   port: 3000,
   rabbitmqUrl: 'amqp://event:event@localhost:5672',
+  rabbitmqEventsExchange: 'domain.events',
   rabbitmqCommandsExchange: 'domain.commands',
   rabbitmqManagementApiBaseUrl: 'http://localhost:15672/api',
   rabbitmqManagementUser: 'event',
@@ -40,6 +41,9 @@ export class ApiGatewayConfigService {
 
   get port(): number { return this.config.get<number>('API_GATEWAY_PORT', DEFAULTS.port); }
   get rabbitmqUrl(): string { return this.config.get<string>('RABBITMQ_URL', DEFAULTS.rabbitmqUrl); }
+  get rabbitmqEventsExchange(): string {
+    return this.config.get<string>('RABBITMQ_EXCHANGE_EVENTS', DEFAULTS.rabbitmqEventsExchange);
+  }
   get rabbitmqCommandsExchange(): string {
     return this.config.get<string>('RABBITMQ_EXCHANGE_COMMANDS', DEFAULTS.rabbitmqCommandsExchange);
   }
@@ -121,6 +125,7 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
   const env = { ...raw };
   env.API_GATEWAY_PORT = toPositiveInt(raw.API_GATEWAY_PORT, DEFAULTS.port, 'API_GATEWAY_PORT');
   env.RABBITMQ_URL = optionalString(raw.RABBITMQ_URL) ?? DEFAULTS.rabbitmqUrl;
+  env.RABBITMQ_EXCHANGE_EVENTS = optionalString(raw.RABBITMQ_EXCHANGE_EVENTS) ?? DEFAULTS.rabbitmqEventsExchange;
   env.RABBITMQ_EXCHANGE_COMMANDS = optionalString(raw.RABBITMQ_EXCHANGE_COMMANDS) ?? DEFAULTS.rabbitmqCommandsExchange;
   env.RABBITMQ_MANAGEMENT_API_URL =
     optionalString(raw.RABBITMQ_MANAGEMENT_API_URL) ??

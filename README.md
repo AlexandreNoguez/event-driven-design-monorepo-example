@@ -479,6 +479,8 @@ sequenceDiagram
 - Falhas permanentes → DLQ com visibilidade no admin
 - Re-drive administrativo via endpoints protegidos por role `admin` no `api-gateway`
 - Politica MVP implementada nos consumers: ate `3` tentativas (via `x-death`) e parking manual em `q.*.dlq`
+- Re-drive em modo seguro: leitura da DLQ via AMQP com `ack` somente apos `publish confirm` no exchange de retry
+- Trilha operacional de re-drive: evento `DlqRedriveCompleted.v1` com `operationCorrelationId` (auditável no `audit-service`)
 
 **RNF-03.1** Timeouts e limites (MVP)
 

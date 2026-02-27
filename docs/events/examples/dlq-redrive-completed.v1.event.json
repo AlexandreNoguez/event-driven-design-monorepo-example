@@ -1,0 +1,22 @@
+{
+  "messageId": "f8f8f8f8-6f8d-4f68-a00e-bbbbbbbbbbbb",
+  "kind": "event",
+  "type": "DlqRedriveCompleted.v1",
+  "occurredAt": "2026-02-25T01:42:10.000Z",
+  "correlationId": "a6b6c6d6-4f4c-4f6f-bd34-333333333333",
+  "producer": "api-gateway",
+  "version": 1,
+  "payload": {
+    "operationCorrelationId": "a6b6c6d6-4f4c-4f6f-bd34-333333333333",
+    "queue": "q.validator.dlq",
+    "mainQueue": "q.validator",
+    "retryExchange": "retry.q.validator",
+    "requested": 10,
+    "fetched": 4,
+    "moved": 4,
+    "failed": 0,
+    "requestedByUserId": "admin-subject-001",
+    "requestedByUserName": "demo-admin",
+    "failures": []
+  }
+}

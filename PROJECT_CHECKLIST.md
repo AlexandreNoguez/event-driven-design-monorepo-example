@@ -175,7 +175,8 @@
 - [x] Outbox Pattern completo (publisher + retry)
   - `upload-service`, `projection-service`, `validator-service`, `thumbnail-service` e `extractor-service` publicam via outbox com retry operacional (tentativas maximas + falha terminal em `publish_status='failed'` + telemetria)
 - [x] DLQ visível e processo de “re-drive” (admin)
-  - Endpoints admin no `api-gateway`: listagem, peek e re-drive de filas `q.*.dlq` conhecidas (RabbitMQ Management API)
+  - Endpoints admin no `api-gateway`: listagem, peek e re-drive de filas `q.*.dlq` conhecidas
+  - Re-drive em modo seguro (AMQP confirm + `ack` somente após publish) com rastreio por `operationCorrelationId`
 - [x] Regras de retry (ex: 3 tentativas + DLQ)
   - Consumers dos workers aplicam politica com `x-death`: ate 3 tentativas e parking manual em `dlq.q.X` (routing key `parking`)
 - [x] Timeouts e limites (tamanho máximo, tipos suportados)

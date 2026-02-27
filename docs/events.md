@@ -20,6 +20,7 @@ Referências em código:
 | event | `ThumbnailGenerated.v1` | `domain.events` | `thumbnails.generated.v1` | `thumbnail-service` | `projection-service`, `audit-service` | implemented |
 | event | `MetadataExtracted.v1` | `domain.events` | `metadata.extracted.v1` | `extractor-service` | `projection-service`, `audit-service` | implemented |
 | event | `ProcessingCompleted.v1` | `domain.events` | `processing.completed.v1` | `projection-service` | `projection-service`, `notification-service`, `audit-service` | implemented |
+| event | `DlqRedriveCompleted.v1` | `domain.events` | `operations.dlq.redrive.completed.v1` | `api-gateway` | `audit-service` (principal), `projection-service` (ignora) | implemented |
 
 ## 2. Contratos v1 (payload mínimo)
 
@@ -118,6 +119,22 @@ Payload mínimo:
 - `userId?: string`
 - `tenantId?: string`
 
+### 2.9 `DlqRedriveCompleted.v1`
+
+Payload mínimo:
+
+- `operationCorrelationId: string`
+- `queue: string`
+- `mainQueue: string`
+- `retryExchange: string`
+- `requested: number`
+- `fetched: number`
+- `moved: number`
+- `failed: number`
+- `requestedByUserId: string`
+- `requestedByUserName: string`
+- `failures: Array<{ index: number; reason: string }>`
+
 ## 3. Exemplos JSON (envelope completo)
 
 Arquivos:
@@ -130,6 +147,7 @@ Arquivos:
 - `docs/events/examples/thumbnail-generated.v1.event.json`
 - `docs/events/examples/metadata-extracted.v1.event.json`
 - `docs/events/examples/processing-completed.v1.event.json`
+- `docs/events/examples/dlq-redrive-completed.v1.event.json`
 
 ## 4. Regras de compatibilidade e evolução (`.v2`)
 

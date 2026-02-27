@@ -9,7 +9,8 @@ export type EventTypeV1 =
   | 'FileRejected.v1'
   | 'ThumbnailGenerated.v1'
   | 'MetadataExtracted.v1'
-  | 'ProcessingCompleted.v1';
+  | 'ProcessingCompleted.v1'
+  | 'DlqRedriveCompleted.v1';
 
 export type MessageTypeV1 = CommandTypeV1 | EventTypeV1;
 
@@ -21,7 +22,8 @@ export type EventRoutingKeyV1 =
   | 'files.rejected.v1'
   | 'thumbnails.generated.v1'
   | 'metadata.extracted.v1'
-  | 'processing.completed.v1';
+  | 'processing.completed.v1'
+  | 'operations.dlq.redrive.completed.v1';
 
 export interface FileActorRef {
   userId?: string;
@@ -84,6 +86,23 @@ export interface ProcessingCompletedPayload extends FileActorRef {
   completedSteps: string[];
 }
 
+export interface DlqRedriveCompletedPayload {
+  operationCorrelationId: string;
+  queue: string;
+  mainQueue: string;
+  retryExchange: string;
+  requested: number;
+  fetched: number;
+  moved: number;
+  failed: number;
+  requestedByUserId: string;
+  requestedByUserName: string;
+  failures: Array<{
+    index: number;
+    reason: string;
+  }>;
+}
+
 export interface CommandPayloadMapV1 {
   'UploadRequested.v1': UploadRequestedPayload;
   'ReprocessFileRequested.v1': ReprocessFileRequestedPayload;
@@ -96,6 +115,7 @@ export interface EventPayloadMapV1 {
   'ThumbnailGenerated.v1': ThumbnailGeneratedPayload;
   'MetadataExtracted.v1': MetadataExtractedPayload;
   'ProcessingCompleted.v1': ProcessingCompletedPayload;
+  'DlqRedriveCompleted.v1': DlqRedriveCompletedPayload;
 }
 
 export const COMMAND_ROUTING_KEYS_V1: { [K in CommandTypeV1]: CommandRoutingKeyV1 } = {
@@ -110,6 +130,7 @@ export const EVENT_ROUTING_KEYS_V1: { [K in EventTypeV1]: EventRoutingKeyV1 } = 
   'ThumbnailGenerated.v1': 'thumbnails.generated.v1',
   'MetadataExtracted.v1': 'metadata.extracted.v1',
   'ProcessingCompleted.v1': 'processing.completed.v1',
+  'DlqRedriveCompleted.v1': 'operations.dlq.redrive.completed.v1',
 };
 
 export type MessageCatalogEntryV1 =
@@ -203,6 +224,15 @@ export const MESSAGE_CATALOG_V1: Record<MessageTypeV1, MessageCatalogEntryV1> = 
     routingKey: EVENT_ROUTING_KEYS_V1['ProcessingCompleted.v1'],
     producer: 'projection-service',
     consumers: ['projection-service', 'notification-service', 'audit-service'],
+    status: 'implemented',
+  },
+  'DlqRedriveCompleted.v1': {
+    kind: 'event',
+    type: 'DlqRedriveCompleted.v1',
+    exchange: MESSAGE_EXCHANGES.events,
+    routingKey: EVENT_ROUTING_KEYS_V1['DlqRedriveCompleted.v1'],
+    producer: 'api-gateway',
+    consumers: ['audit-service', 'projection-service (ignored)'],
     status: 'implemented',
   },
 };

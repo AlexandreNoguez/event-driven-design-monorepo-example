@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
-import { createJsonLogEntry } from '@event-pipeline/shared';
+import { createJsonLogEntry, generateCorrelationId } from '@event-pipeline/shared';
 import { resolveKnownDlqQueueTarget } from '../../domain/admin/dlq-queue';
 import {
   DLQ_ADMIN,
@@ -51,10 +51,12 @@ export class AdminDlqApplicationService {
   }) {
     const target = this.requireKnownQueue(input.queue);
     const limit = this.parseLimit(input.limit, DEFAULT_REDRIVE_LIMIT, MAX_REDRIVE_LIMIT, 'limit');
+    const operationCorrelationId = generateCorrelationId();
 
     const result = await this.dlqAdmin.redriveMessages({
       queue: target.dlqQueue,
       limit,
+      operationCorrelationId,
       requestedByUserId: input.requestedByUserId,
       requestedByUserName: input.requestedByUserName,
     });
@@ -62,8 +64,8 @@ export class AdminDlqApplicationService {
     this.logger.warn(JSON.stringify(createJsonLogEntry({
       level: 'warn',
       service: 'api-gateway',
-      message: 'DLQ re-drive requested.',
-      correlationId: 'system',
+      message: 'DLQ re-drive finished.',
+      correlationId: operationCorrelationId,
       userId: input.requestedByUserId,
       queue: target.dlqQueue,
       metadata: {

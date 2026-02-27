@@ -1,5 +1,11 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { createJsonLogEntry } from '@event-pipeline/shared';
+import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
+import { once } from 'node:events';
+import * as amqp from 'amqplib';
+import {
+  createEnvelope,
+  createJsonLogEntry,
+  generateId,
+} from '@event-pipeline/shared';
 import type {
   DlqAdminPort,
   DlqPeekInput,
@@ -31,13 +37,35 @@ interface RabbitQueueGetMessageDto {
   properties?: Record<string, unknown>;
 }
 
-interface RabbitPublishResponseDto {
-  routed?: boolean;
+interface ParsedEnvelopeSummary {
+  messageId?: string;
+  type?: string;
+  correlationId?: string;
 }
 
+interface DlqRedriveCompletedEventPayload {
+  operationCorrelationId: string;
+  queue: string;
+  mainQueue: string;
+  retryExchange: string;
+  requested: number;
+  fetched: number;
+  moved: number;
+  failed: number;
+  requestedByUserId: string;
+  requestedByUserName: string;
+  failures: Array<{ index: number; reason: string }>;
+}
+
+const DLQ_REDRIVE_COMPLETED_EVENT_TYPE = 'DlqRedriveCompleted.v1' as const;
+const DLQ_REDRIVE_COMPLETED_ROUTING_KEY = 'operations.dlq.redrive.completed.v1' as const;
+
 @Injectable()
-export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
+export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort, OnModuleDestroy {
   private readonly logger = new Logger(RabbitMqManagementDlqAdminAdapter.name);
+  private redriveConnection?: amqp.ChannelModel;
+  private redriveChannel?: amqp.ConfirmChannel;
+  private redriveChannelPromise?: Promise<amqp.ConfirmChannel>;
 
   constructor(private readonly config: ApiGatewayConfigService) {}
 
@@ -78,40 +106,70 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
       throw new ServiceUnavailableException(`Unsupported DLQ queue "${input.queue}".`);
     }
 
-    const pulled = await this.readFromQueue(target.dlqQueue, input.limit, 'ack_requeue_false');
+    const channel = await this.getRedriveChannel();
+    await channel.checkQueue(target.dlqQueue);
+    await channel.checkExchange(target.retryExchange);
+
     const failures: Array<{ index: number; reason: string }> = [];
     let moved = 0;
+    let fetched = 0;
 
-    for (let index = 0; index < pulled.length; index += 1) {
-      const message = pulled[index];
+    for (let index = 0; index < input.limit; index += 1) {
+      const message = await channel.get(target.dlqQueue, { noAck: false });
+      if (!message) {
+        break;
+      }
+
+      fetched += 1;
+
       try {
-        const routed = await this.publishToExchange({
-          exchange: target.retryExchange,
-          routingKey: target.retryRoutingKey,
-          payload: message.payload,
-          payloadEncoding: message.payload_encoding ?? 'auto',
-          properties: this.withRedriveHeaders(message.properties, {
+        const published = channel.publish(
+          target.retryExchange,
+          target.retryRoutingKey,
+          message.content,
+          this.withRedriveHeaders(message.properties, {
             queue: target.dlqQueue,
-            originalRoutingKey: message.routing_key,
+            operationCorrelationId: input.operationCorrelationId,
+            originalRoutingKey: message.fields.routingKey,
             requestedByUserId: input.requestedByUserId,
             requestedByUserName: input.requestedByUserName,
           }),
-        });
+        );
 
-        if (!routed) {
-          failures.push({ index, reason: 'RabbitMQ Management API publish returned routed=false.' });
-          continue;
+        if (!published) {
+          await once(channel, 'drain');
         }
 
+        await channel.waitForConfirms();
+        channel.ack(message);
         moved += 1;
+
+        const summary = summarizeEnvelope(message.content);
+        this.logger.log(JSON.stringify(createJsonLogEntry({
+          level: 'info',
+          service: 'api-gateway',
+          message: 'DLQ message re-driven via AMQP confirm channel.',
+          correlationId: input.operationCorrelationId,
+          queue: target.dlqQueue,
+          metadata: {
+            index,
+            retryExchange: target.retryExchange,
+            retryRoutingKey: target.retryRoutingKey,
+            originalMessageId: summary.messageId ?? message.properties.messageId,
+            originalType: summary.type ?? message.properties.type,
+            originalCorrelationId: summary.correlationId ?? message.properties.correlationId,
+          },
+        })));
       } catch (error) {
+        channel.nack(message, false, true);
         const reason = error instanceof Error ? error.message : 'Unknown publish error.';
         failures.push({ index, reason });
+
         this.logger.error(JSON.stringify(createJsonLogEntry({
           level: 'error',
           service: 'api-gateway',
-          message: 'DLQ re-drive publish failed.',
-          correlationId: 'system',
+          message: 'DLQ re-drive publish failed; message requeued in DLQ.',
+          correlationId: input.operationCorrelationId,
           queue: target.dlqQueue,
           metadata: {
             index,
@@ -119,21 +177,189 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
           },
           error,
         })));
+
+        break;
       }
     }
 
-    return {
+    const result: DlqRedriveResult = {
+      operationCorrelationId: input.operationCorrelationId,
       queue: target.dlqQueue,
       mainQueue: target.mainQueue,
       retryExchange: target.retryExchange,
       requested: input.limit,
-      fetched: pulled.length,
+      fetched,
       moved,
       failed: failures.length,
       failures,
       caveat:
-        'Re-drive uses RabbitMQ Management API queue/get with ack_requeue_false. If republish fails after dequeue, the message may require manual recovery from logs/audit.',
+        'Safe mode: re-drive uses AMQP confirm channel and only acks the DLQ message after publish confirmation.',
     };
+
+    await this.publishRedriveCompletedEvent(result, {
+      requestedByUserId: input.requestedByUserId,
+      requestedByUserName: input.requestedByUserName,
+    });
+
+    return result;
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.closeRedriveChannel();
+  }
+
+  private async publishRedriveCompletedEvent(
+    result: DlqRedriveResult,
+    metadata: { requestedByUserId: string; requestedByUserName: string },
+  ): Promise<void> {
+    const channel = await this.getRedriveChannel();
+
+    const payload: DlqRedriveCompletedEventPayload = {
+      operationCorrelationId: result.operationCorrelationId,
+      queue: result.queue,
+      mainQueue: result.mainQueue,
+      retryExchange: result.retryExchange,
+      requested: result.requested,
+      fetched: result.fetched,
+      moved: result.moved,
+      failed: result.failed,
+      requestedByUserId: metadata.requestedByUserId,
+      requestedByUserName: metadata.requestedByUserName,
+      failures: result.failures.slice(0, 10),
+    };
+
+    const event = createEnvelope({
+      messageId: generateId(),
+      kind: 'event',
+      type: DLQ_REDRIVE_COMPLETED_EVENT_TYPE,
+      producer: 'api-gateway',
+      correlationId: result.operationCorrelationId,
+      payload,
+      version: 1,
+    });
+
+    const published = channel.publish(
+      this.config.rabbitmqEventsExchange,
+      DLQ_REDRIVE_COMPLETED_ROUTING_KEY,
+      Buffer.from(JSON.stringify(event), 'utf-8'),
+      {
+        contentType: 'application/json',
+        contentEncoding: 'utf-8',
+        deliveryMode: 2,
+        timestamp: Date.now(),
+        messageId: event.messageId,
+        type: event.type,
+        correlationId: event.correlationId,
+        headers: {
+          kind: event.kind,
+          version: event.version,
+          producer: event.producer,
+        },
+      },
+    );
+
+    if (!published) {
+      await once(channel, 'drain');
+    }
+
+    await channel.waitForConfirms();
+  }
+
+  private async getRedriveChannel(): Promise<amqp.ConfirmChannel> {
+    if (this.redriveChannel) {
+      return this.redriveChannel;
+    }
+
+    if (!this.redriveChannelPromise) {
+      this.redriveChannelPromise = this.createRedriveChannel();
+    }
+
+    try {
+      return await this.redriveChannelPromise;
+    } finally {
+      this.redriveChannelPromise = undefined;
+    }
+  }
+
+  private async createRedriveChannel(): Promise<amqp.ConfirmChannel> {
+    const connection = await amqp.connect(this.config.rabbitmqUrl);
+    const channel = await connection.createConfirmChannel();
+
+    connection.on('error', (error: unknown) => {
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'api-gateway',
+        message: 'AMQP connection error for DLQ re-drive adapter.',
+        correlationId: 'system',
+        error,
+      })));
+      this.resetRedriveChannelState();
+    });
+
+    connection.on('close', () => {
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'api-gateway',
+        message: 'AMQP connection closed for DLQ re-drive adapter.',
+        correlationId: 'system',
+      })));
+      this.resetRedriveChannelState();
+    });
+
+    channel.on('error', (error: unknown) => {
+      this.logger.error(JSON.stringify(createJsonLogEntry({
+        level: 'error',
+        service: 'api-gateway',
+        message: 'AMQP channel error for DLQ re-drive adapter.',
+        correlationId: 'system',
+        error,
+      })));
+      this.resetRedriveChannelState();
+    });
+
+    channel.on('close', () => {
+      this.logger.warn(JSON.stringify(createJsonLogEntry({
+        level: 'warn',
+        service: 'api-gateway',
+        message: 'AMQP channel closed for DLQ re-drive adapter.',
+        correlationId: 'system',
+      })));
+      this.resetRedriveChannelState();
+    });
+
+    await channel.assertExchange(this.config.rabbitmqEventsExchange, 'topic', { durable: true });
+
+    this.redriveConnection = connection;
+    this.redriveChannel = channel;
+
+    return channel;
+  }
+
+  private resetRedriveChannelState(): void {
+    this.redriveChannel = undefined;
+    this.redriveConnection = undefined;
+  }
+
+  private async closeRedriveChannel(): Promise<void> {
+    const channel = this.redriveChannel;
+    const connection = this.redriveConnection;
+    this.resetRedriveChannelState();
+
+    try {
+      if (channel) {
+        await channel.close();
+      }
+    } catch {
+      // no-op during shutdown
+    }
+
+    try {
+      if (connection) {
+        await connection.close();
+      }
+    } catch {
+      // no-op during shutdown
+    }
   }
 
   private async readFromQueue(
@@ -166,50 +392,43 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
     };
   }
 
-  private async publishToExchange(input: {
-    exchange: string;
-    routingKey: string;
-    payload: unknown;
-    payloadEncoding: string;
-    properties: Record<string, unknown>;
-  }): Promise<boolean> {
-    const response = await this.requestJson<RabbitPublishResponseDto>(
-      'POST',
-      this.path(`/exchanges/${this.encodedVhost}/${encodeURIComponent(input.exchange)}/publish`),
-      {
-        properties: input.properties,
-        routing_key: input.routingKey,
-        payload: typeof input.payload === 'string' ? input.payload : JSON.stringify(input.payload ?? null),
-        payload_encoding: input.payloadEncoding === 'base64' ? 'base64' : 'string',
-      },
-    );
-
-    return Boolean(response.routed);
-  }
-
   private withRedriveHeaders(
-    properties: Record<string, unknown> | undefined,
+    properties: amqp.MessageProperties,
     metadata: {
       queue: string;
+      operationCorrelationId: string;
       originalRoutingKey?: string;
       requestedByUserId: string;
       requestedByUserName: string;
     },
-  ): Record<string, unknown> {
-    const nextProperties = isRecord(properties) ? { ...properties } : {};
-    const headers = isRecord(nextProperties.headers) ? { ...nextProperties.headers } : {};
+  ): amqp.Options.Publish {
+    const headers = isRecord(properties.headers) ? { ...properties.headers } : {};
 
     headers['x-redriven-from-dlq'] = metadata.queue;
     headers['x-redriven-at'] = new Date().toISOString();
     headers['x-redriven-by-user-id'] = metadata.requestedByUserId;
     headers['x-redriven-by-user-name'] = metadata.requestedByUserName;
+    headers['x-redrive-operation-correlation-id'] = metadata.operationCorrelationId;
 
     if (metadata.originalRoutingKey) {
       headers['x-original-routing-key'] = metadata.originalRoutingKey;
     }
 
-    nextProperties.headers = headers;
-    return nextProperties;
+    return {
+      appId: properties.appId,
+      contentEncoding: properties.contentEncoding,
+      contentType: properties.contentType,
+      correlationId: properties.correlationId,
+      deliveryMode: properties.deliveryMode,
+      expiration: properties.expiration,
+      headers,
+      messageId: properties.messageId,
+      priority: properties.priority,
+      replyTo: properties.replyTo,
+      timestamp: properties.timestamp,
+      type: properties.type,
+      userId: properties.userId,
+    };
   }
 
   private async requestJson<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
@@ -260,7 +479,19 @@ export class RabbitMqManagementDlqAdminAdapter implements DlqAdminPort {
     ).toString('base64');
     return `Basic ${token}`;
   }
+}
 
+function summarizeEnvelope(rawContent: Buffer): ParsedEnvelopeSummary {
+  try {
+    const parsed = JSON.parse(rawContent.toString('utf-8')) as Record<string, unknown>;
+    return {
+      messageId: typeof parsed.messageId === 'string' ? parsed.messageId : undefined,
+      type: typeof parsed.type === 'string' ? parsed.type : undefined,
+      correlationId: typeof parsed.correlationId === 'string' ? parsed.correlationId : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 function safeParseJsonPayload(payload: unknown): unknown {
