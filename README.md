@@ -466,7 +466,7 @@ sequenceDiagram
 **RNF-01** Confiabilidade de publicação (Outbox)
 
 - Eventos só são publicados após commit da transação
-- `upload-service` e `projection-service` usam outbox com publisher desacoplado
+- `upload-service`, `projection-service`, `validator-service`, `thumbnail-service` e `extractor-service` usam outbox com publisher desacoplado
 - Retry operacional de outbox (MVP): tentativas limitadas por config (`*_OUTBOX_MAX_PUBLISH_ATTEMPTS`) e falha terminal com `publish_status = 'failed'`
 
 **RNF-02** Idempotência em consumers

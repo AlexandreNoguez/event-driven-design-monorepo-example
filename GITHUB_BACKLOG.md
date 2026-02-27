@@ -191,7 +191,7 @@ Status atual:
 ## Milestone M4 — Robustez e operação
 
 Status atual:
-- `17` parcial (`upload-service` e `projection-service` com outbox + retry operacional/telemetria; falta padronizar/expandir outbox para demais produtores)
+- `17` concluida para produtores de eventos (`upload-service`, `projection-service`, `validator-service`, `thumbnail-service`, `extractor-service`) com outbox + retry operacional/telemetria
 - `18` parcial (DLQ visível + endpoints admin de re-drive no `api-gateway`; retry dos consumers com `x-death` + parking manual em DLQ implementado; falta endurecer estrategia e fluxo de re-drive)
 - `M4` observabilidade: logs JSON estruturados cobrem bootstraps, consumers/publishers AMQP, use cases, outbox pollers, repositorios/infra e operacao do gateway
 - `M4` avancando em resiliencia de borda: `api-gateway` com timeouts configuraveis (JWKS/Management API), limites de upload e envelope de erro HTTP padronizado

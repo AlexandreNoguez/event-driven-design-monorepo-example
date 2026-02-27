@@ -15,10 +15,6 @@ import {
   type FileValidatedEvent,
 } from '../../domain/thumbnail/thumbnail-generation';
 import {
-  THUMBNAIL_EVENTS_PUBLISHER_PORT,
-  type ThumbnailEventsPublisherPort,
-} from './ports/thumbnail-events-publisher.port';
-import {
   THUMBNAIL_IMAGE_PROCESSOR_PORT,
   type ThumbnailImageProcessorPort,
 } from './ports/thumbnail-image-processor.port';
@@ -26,6 +22,10 @@ import {
   THUMBNAIL_OBJECT_STORAGE_PORT,
   type ThumbnailObjectStoragePort,
 } from './ports/thumbnail-object-storage.port';
+import {
+  THUMBNAIL_OUTBOX_REPOSITORY_PORT,
+  type ThumbnailOutboxRepositoryPort,
+} from './ports/thumbnail-outbox-repository.port';
 import {
   THUMBNAIL_PROCESSED_EVENTS_PORT,
   type ThumbnailProcessedEventsPort,
@@ -41,10 +41,10 @@ export class HandleFileValidatedUseCase {
     private readonly objectStorage: ThumbnailObjectStoragePort,
     @Inject(THUMBNAIL_IMAGE_PROCESSOR_PORT)
     private readonly imageProcessor: ThumbnailImageProcessorPort,
-    @Inject(THUMBNAIL_EVENTS_PUBLISHER_PORT)
-    private readonly eventsPublisher: ThumbnailEventsPublisherPort,
     @Inject(THUMBNAIL_PROCESSED_EVENTS_PORT)
     private readonly processedEvents: ThumbnailProcessedEventsPort,
+    @Inject(THUMBNAIL_OUTBOX_REPOSITORY_PORT)
+    private readonly outboxRepository: ThumbnailOutboxRepositoryPort,
     private readonly config: ThumbnailServiceConfigService,
   ) {}
 
@@ -140,19 +140,35 @@ export class HandleFileValidatedUseCase {
       causationId: event.messageId,
     });
 
-    await this.eventsPublisher.publishDomainEvent(nextEvent, 'thumbnails.generated.v1');
-    await this.processedEvents.markProcessedEvent({
+    const persisted = await this.outboxRepository.storeProcessedEventAndOutbox({
       eventId: event.messageId,
       consumerName,
       correlationId: event.correlationId,
       messageType: event.type,
       sourceProducer: event.producer,
+      outboxEvent: nextEvent,
+      routingKey: 'thumbnails.generated.v1',
     });
+
+    if (!persisted.applied) {
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'thumbnail-service',
+        message: 'Skipped already processed thumbnail event.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        metadata: { consumerName },
+      })));
+      return { skipped: true };
+    }
 
     this.logger.log(JSON.stringify(createJsonLogEntry({
       level: 'info',
       service: 'thumbnail-service',
-      message: 'Thumbnail generated and event published.',
+      message: 'Thumbnail generated and event queued in outbox.',
       correlationId: event.correlationId,
       causationId: event.messageId,
       messageId: nextEvent.messageId,

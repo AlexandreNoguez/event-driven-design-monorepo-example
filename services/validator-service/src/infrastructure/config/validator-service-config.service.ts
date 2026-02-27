@@ -9,6 +9,9 @@ const DEFAULTS = {
   queue: 'q.validator',
   prefetch: 10,
   consumerName: 'validator:file-uploaded',
+  outboxPollIntervalMs: 2000,
+  outboxBatchSize: 50,
+  outboxMaxPublishAttempts: 5,
   maxSizeBytes: 20 * 1024 * 1024,
   allowedMimeTypes: 'image/png,image/jpeg,image/webp,application/pdf',
   signatureReadBytes: 64,
@@ -57,6 +60,27 @@ export class ValidatorServiceConfigService {
 
   get consumerName(): string {
     return this.config.get<string>('VALIDATOR_SERVICE_CONSUMER_NAME', DEFAULTS.consumerName);
+  }
+
+  get outboxPollIntervalMs(): number {
+    return this.config.get<number>(
+      'VALIDATOR_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+      DEFAULTS.outboxPollIntervalMs,
+    );
+  }
+
+  get outboxBatchSize(): number {
+    return this.config.get<number>(
+      'VALIDATOR_SERVICE_OUTBOX_BATCH_SIZE',
+      DEFAULTS.outboxBatchSize,
+    );
+  }
+
+  get outboxMaxPublishAttempts(): number {
+    return this.config.get<number>(
+      'VALIDATOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+      DEFAULTS.outboxMaxPublishAttempts,
+    );
   }
 
   get signatureReadBytes(): number {
@@ -117,6 +141,21 @@ export function validateValidatorServiceEnvironment(
   );
   env.VALIDATOR_SERVICE_CONSUMER_NAME =
     optionalString(raw.VALIDATOR_SERVICE_CONSUMER_NAME) ?? DEFAULTS.consumerName;
+  env.VALIDATOR_SERVICE_OUTBOX_POLL_INTERVAL_MS = toPositiveInt(
+    raw.VALIDATOR_SERVICE_OUTBOX_POLL_INTERVAL_MS,
+    DEFAULTS.outboxPollIntervalMs,
+    'VALIDATOR_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+  );
+  env.VALIDATOR_SERVICE_OUTBOX_BATCH_SIZE = toPositiveInt(
+    raw.VALIDATOR_SERVICE_OUTBOX_BATCH_SIZE,
+    DEFAULTS.outboxBatchSize,
+    'VALIDATOR_SERVICE_OUTBOX_BATCH_SIZE',
+  );
+  env.VALIDATOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS = toPositiveInt(
+    raw.VALIDATOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS,
+    DEFAULTS.outboxMaxPublishAttempts,
+    'VALIDATOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+  );
   env.VALIDATOR_SERVICE_SIGNATURE_READ_BYTES = toPositiveInt(
     raw.VALIDATOR_SERVICE_SIGNATURE_READ_BYTES,
     DEFAULTS.signatureReadBytes,

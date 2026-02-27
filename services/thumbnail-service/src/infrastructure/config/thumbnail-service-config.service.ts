@@ -9,6 +9,9 @@ const DEFAULTS = {
   queue: 'q.thumbnail',
   prefetch: 10,
   consumerName: 'thumbnail:file-validated',
+  outboxPollIntervalMs: 2000,
+  outboxBatchSize: 50,
+  outboxMaxPublishAttempts: 5,
   supportedMimeTypes: 'image/png,image/jpeg,image/webp',
   width: 320,
   height: 320,
@@ -44,6 +47,24 @@ export class ThumbnailServiceConfigService {
   get consumerName(): string {
     return this.config.get<string>('THUMBNAIL_SERVICE_CONSUMER_NAME', DEFAULTS.consumerName);
   }
+  get outboxPollIntervalMs(): number {
+    return this.config.get<number>(
+      'THUMBNAIL_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+      DEFAULTS.outboxPollIntervalMs,
+    );
+  }
+  get outboxBatchSize(): number {
+    return this.config.get<number>(
+      'THUMBNAIL_SERVICE_OUTBOX_BATCH_SIZE',
+      DEFAULTS.outboxBatchSize,
+    );
+  }
+  get outboxMaxPublishAttempts(): number {
+    return this.config.get<number>(
+      'THUMBNAIL_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+      DEFAULTS.outboxMaxPublishAttempts,
+    );
+  }
   get supportedMimeTypesCsv(): string {
     return this.config.get<string>('THUMBNAIL_SERVICE_SUPPORTED_MIME_TYPES', DEFAULTS.supportedMimeTypes);
   }
@@ -77,6 +98,21 @@ export function validateThumbnailServiceEnvironment(raw: Record<string, unknown>
   env.THUMBNAIL_SERVICE_QUEUE = optionalString(raw.THUMBNAIL_SERVICE_QUEUE) ?? DEFAULTS.queue;
   env.THUMBNAIL_SERVICE_PREFETCH = toPositiveInt(raw.THUMBNAIL_SERVICE_PREFETCH, DEFAULTS.prefetch, 'THUMBNAIL_SERVICE_PREFETCH');
   env.THUMBNAIL_SERVICE_CONSUMER_NAME = optionalString(raw.THUMBNAIL_SERVICE_CONSUMER_NAME) ?? DEFAULTS.consumerName;
+  env.THUMBNAIL_SERVICE_OUTBOX_POLL_INTERVAL_MS = toPositiveInt(
+    raw.THUMBNAIL_SERVICE_OUTBOX_POLL_INTERVAL_MS,
+    DEFAULTS.outboxPollIntervalMs,
+    'THUMBNAIL_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+  );
+  env.THUMBNAIL_SERVICE_OUTBOX_BATCH_SIZE = toPositiveInt(
+    raw.THUMBNAIL_SERVICE_OUTBOX_BATCH_SIZE,
+    DEFAULTS.outboxBatchSize,
+    'THUMBNAIL_SERVICE_OUTBOX_BATCH_SIZE',
+  );
+  env.THUMBNAIL_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS = toPositiveInt(
+    raw.THUMBNAIL_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS,
+    DEFAULTS.outboxMaxPublishAttempts,
+    'THUMBNAIL_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+  );
   env.THUMBNAIL_SERVICE_SUPPORTED_MIME_TYPES = optionalString(raw.THUMBNAIL_SERVICE_SUPPORTED_MIME_TYPES) ?? DEFAULTS.supportedMimeTypes;
   env.THUMBNAIL_SERVICE_WIDTH = toPositiveInt(raw.THUMBNAIL_SERVICE_WIDTH, DEFAULTS.width, 'THUMBNAIL_SERVICE_WIDTH');
   env.THUMBNAIL_SERVICE_HEIGHT = toPositiveInt(raw.THUMBNAIL_SERVICE_HEIGHT, DEFAULTS.height, 'THUMBNAIL_SERVICE_HEIGHT');

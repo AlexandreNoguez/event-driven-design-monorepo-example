@@ -15,10 +15,6 @@ import {
   type FileValidatedEvent,
 } from '../../domain/extractor/metadata-extraction';
 import {
-  EXTRACTOR_EVENTS_PUBLISHER_PORT,
-  type ExtractorEventsPublisherPort,
-} from './ports/extractor-events-publisher.port';
-import {
   EXTRACTOR_OBJECT_STORAGE_PORT,
   type ExtractorObjectStoragePort,
 } from './ports/extractor-object-storage.port';
@@ -26,6 +22,10 @@ import {
   EXTRACTOR_PROCESSED_EVENTS_PORT,
   type ExtractorProcessedEventsPort,
 } from './ports/extractor-processed-events.port';
+import {
+  EXTRACTOR_OUTBOX_REPOSITORY_PORT,
+  type ExtractorOutboxRepositoryPort,
+} from './ports/extractor-outbox-repository.port';
 import {
   IMAGE_METADATA_READER_PORT,
   type ImageMetadataReaderPort,
@@ -41,10 +41,10 @@ export class HandleFileValidatedUseCase {
     private readonly objectStorage: ExtractorObjectStoragePort,
     @Inject(IMAGE_METADATA_READER_PORT)
     private readonly imageMetadataReader: ImageMetadataReaderPort,
-    @Inject(EXTRACTOR_EVENTS_PUBLISHER_PORT)
-    private readonly eventsPublisher: ExtractorEventsPublisherPort,
     @Inject(EXTRACTOR_PROCESSED_EVENTS_PORT)
     private readonly processedEvents: ExtractorProcessedEventsPort,
+    @Inject(EXTRACTOR_OUTBOX_REPOSITORY_PORT)
+    private readonly outboxRepository: ExtractorOutboxRepositoryPort,
     private readonly config: ExtractorServiceConfigService,
   ) {}
 
@@ -121,19 +121,35 @@ export class HandleFileValidatedUseCase {
       causationId: event.messageId,
     });
 
-    await this.eventsPublisher.publishDomainEvent(nextEvent, 'metadata.extracted.v1');
-    await this.processedEvents.markProcessedEvent({
+    const persisted = await this.outboxRepository.storeProcessedEventAndOutbox({
       eventId: event.messageId,
       consumerName,
       correlationId: event.correlationId,
       messageType: event.type,
       sourceProducer: event.producer,
+      outboxEvent: nextEvent,
+      routingKey: 'metadata.extracted.v1',
     });
+
+    if (!persisted.applied) {
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'extractor-service',
+        message: 'Skipped already processed extractor event.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        metadata: { consumerName },
+      })));
+      return { skipped: true };
+    }
 
     this.logger.log(JSON.stringify(createJsonLogEntry({
       level: 'info',
       service: 'extractor-service',
-      message: 'Metadata extracted and event published.',
+      message: 'Metadata extracted and event queued in outbox.',
       correlationId: event.correlationId,
       causationId: event.messageId,
       messageId: nextEvent.messageId,

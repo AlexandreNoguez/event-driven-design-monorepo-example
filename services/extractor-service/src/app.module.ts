@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { HandleFileValidatedUseCase } from './application/extractor/handle-file-validated.use-case';
+import { PublishExtractorOutboxBatchService } from './application/extractor/publish-extractor-outbox-batch.service';
 import { EXTRACTOR_EVENTS_PUBLISHER_PORT } from './application/extractor/ports/extractor-events-publisher.port';
+import { EXTRACTOR_OUTBOX_REPOSITORY_PORT } from './application/extractor/ports/extractor-outbox-repository.port';
 import { EXTRACTOR_OBJECT_STORAGE_PORT } from './application/extractor/ports/extractor-object-storage.port';
 import { EXTRACTOR_PROCESSED_EVENTS_PORT } from './application/extractor/ports/extractor-processed-events.port';
 import { IMAGE_METADATA_READER_PORT } from './application/extractor/ports/image-metadata-reader.port';
@@ -17,6 +19,7 @@ import { PostgresExtractorProcessedEventsAdapter } from './infrastructure/persis
 import { MinioExtractorObjectStorageAdapter } from './infrastructure/storage/minio-extractor-object-storage.adapter';
 import { AppController } from './presentation/http/app.controller';
 import { RabbitMqFileValidatedConsumerService } from './presentation/messaging/rabbitmq-file-validated-consumer.service';
+import { ExtractorOutboxPollerService } from './presentation/workers/extractor-outbox-poller.service';
 
 @Module({
   imports: [
@@ -51,8 +54,14 @@ import { RabbitMqFileValidatedConsumerService } from './presentation/messaging/r
       provide: EXTRACTOR_PROCESSED_EVENTS_PORT,
       useExisting: PostgresExtractorProcessedEventsAdapter,
     },
+    {
+      provide: EXTRACTOR_OUTBOX_REPOSITORY_PORT,
+      useExisting: PostgresExtractorProcessedEventsAdapter,
+    },
     HandleFileValidatedUseCase,
+    PublishExtractorOutboxBatchService,
     RabbitMqFileValidatedConsumerService,
+    ExtractorOutboxPollerService,
   ],
 })
 export class AppModule {}

@@ -8,6 +8,9 @@ const DEFAULTS = {
   queue: 'q.extractor',
   prefetch: 10,
   consumerName: 'extractor:file-validated',
+  outboxPollIntervalMs: 2000,
+  outboxBatchSize: 50,
+  outboxMaxPublishAttempts: 5,
   includeSha256: true,
   imageMetadataMimeTypes: 'image/png,image/jpeg,image/webp,image/gif',
   minioEndpoint: 'localhost',
@@ -39,6 +42,24 @@ export class ExtractorServiceConfigService {
   get consumerName(): string {
     return this.config.get<string>('EXTRACTOR_SERVICE_CONSUMER_NAME', DEFAULTS.consumerName);
   }
+  get outboxPollIntervalMs(): number {
+    return this.config.get<number>(
+      'EXTRACTOR_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+      DEFAULTS.outboxPollIntervalMs,
+    );
+  }
+  get outboxBatchSize(): number {
+    return this.config.get<number>(
+      'EXTRACTOR_SERVICE_OUTBOX_BATCH_SIZE',
+      DEFAULTS.outboxBatchSize,
+    );
+  }
+  get outboxMaxPublishAttempts(): number {
+    return this.config.get<number>(
+      'EXTRACTOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+      DEFAULTS.outboxMaxPublishAttempts,
+    );
+  }
   get includeSha256(): boolean {
     return this.config.get<boolean>('EXTRACTOR_SERVICE_INCLUDE_SHA256', DEFAULTS.includeSha256);
   }
@@ -67,6 +88,21 @@ export function validateExtractorServiceEnvironment(
   env.EXTRACTOR_SERVICE_QUEUE = optionalString(raw.EXTRACTOR_SERVICE_QUEUE) ?? DEFAULTS.queue;
   env.EXTRACTOR_SERVICE_PREFETCH = toPositiveInt(raw.EXTRACTOR_SERVICE_PREFETCH, DEFAULTS.prefetch, 'EXTRACTOR_SERVICE_PREFETCH');
   env.EXTRACTOR_SERVICE_CONSUMER_NAME = optionalString(raw.EXTRACTOR_SERVICE_CONSUMER_NAME) ?? DEFAULTS.consumerName;
+  env.EXTRACTOR_SERVICE_OUTBOX_POLL_INTERVAL_MS = toPositiveInt(
+    raw.EXTRACTOR_SERVICE_OUTBOX_POLL_INTERVAL_MS,
+    DEFAULTS.outboxPollIntervalMs,
+    'EXTRACTOR_SERVICE_OUTBOX_POLL_INTERVAL_MS',
+  );
+  env.EXTRACTOR_SERVICE_OUTBOX_BATCH_SIZE = toPositiveInt(
+    raw.EXTRACTOR_SERVICE_OUTBOX_BATCH_SIZE,
+    DEFAULTS.outboxBatchSize,
+    'EXTRACTOR_SERVICE_OUTBOX_BATCH_SIZE',
+  );
+  env.EXTRACTOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS = toPositiveInt(
+    raw.EXTRACTOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS,
+    DEFAULTS.outboxMaxPublishAttempts,
+    'EXTRACTOR_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
+  );
   env.EXTRACTOR_SERVICE_INCLUDE_SHA256 = toBoolean(raw.EXTRACTOR_SERVICE_INCLUDE_SHA256, DEFAULTS.includeSha256, 'EXTRACTOR_SERVICE_INCLUDE_SHA256');
   env.EXTRACTOR_SERVICE_IMAGE_METADATA_MIME_TYPES = optionalString(raw.EXTRACTOR_SERVICE_IMAGE_METADATA_MIME_TYPES) ?? DEFAULTS.imageMetadataMimeTypes;
   env.MINIO_ENDPOINT = optionalString(raw.MINIO_ENDPOINT) ?? DEFAULTS.minioEndpoint;

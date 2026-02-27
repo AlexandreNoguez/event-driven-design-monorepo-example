@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { HandleFileUploadedUseCase } from './application/validation/handle-file-uploaded.use-case';
+import { PublishValidatorOutboxBatchService } from './application/validation/publish-validator-outbox-batch.service';
 import { FILE_OBJECT_READER_PORT } from './application/validation/ports/file-object-reader.port';
 import { VALIDATOR_EVENTS_PUBLISHER_PORT } from './application/validation/ports/validator-events-publisher.port';
+import { VALIDATOR_OUTBOX_REPOSITORY_PORT } from './application/validation/ports/validator-outbox-repository.port';
 import { VALIDATOR_PROCESSED_EVENTS_PORT } from './application/validation/ports/validator-processed-events.port';
 import { ServiceInfoQuery } from './application/system/service-info.query';
 import { RabbitMqValidatorEventsPublisherAdapter } from './infrastructure/messaging/rabbitmq-validator-events-publisher.adapter';
@@ -15,6 +17,7 @@ import { PostgresValidatorProcessedEventsAdapter } from './infrastructure/persis
 import { MinioFileObjectReaderAdapter } from './infrastructure/storage/minio-file-object-reader.adapter';
 import { AppController } from './presentation/http/app.controller';
 import { RabbitMqFileUploadedConsumerService } from './presentation/messaging/rabbitmq-file-uploaded-consumer.service';
+import { ValidatorOutboxPollerService } from './presentation/workers/validator-outbox-poller.service';
 
 @Module({
   imports: [
@@ -44,8 +47,14 @@ import { RabbitMqFileUploadedConsumerService } from './presentation/messaging/ra
       provide: VALIDATOR_PROCESSED_EVENTS_PORT,
       useExisting: PostgresValidatorProcessedEventsAdapter,
     },
+    {
+      provide: VALIDATOR_OUTBOX_REPOSITORY_PORT,
+      useExisting: PostgresValidatorProcessedEventsAdapter,
+    },
     HandleFileUploadedUseCase,
+    PublishValidatorOutboxBatchService,
     RabbitMqFileUploadedConsumerService,
+    ValidatorOutboxPollerService,
   ],
 })
 export class AppModule {}

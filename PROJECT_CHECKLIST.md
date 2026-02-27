@@ -172,8 +172,8 @@
 ---
 
 ## 7) Robustez e qualidade
-- [ ] Outbox Pattern completo (publisher + retry)
-  - Parcial: `upload-service` e `projection-service` publicam via outbox com retry operacional (tentativas maximas + falha terminal em `publish_status='failed'` + telemetria); falta expandir/padronizar para demais produtores
+- [x] Outbox Pattern completo (publisher + retry)
+  - `upload-service`, `projection-service`, `validator-service`, `thumbnail-service` e `extractor-service` publicam via outbox com retry operacional (tentativas maximas + falha terminal em `publish_status='failed'` + telemetria)
 - [x] DLQ visível e processo de “re-drive” (admin)
   - Endpoints admin no `api-gateway`: listagem, peek e re-drive de filas `q.*.dlq` conhecidas (RabbitMQ Management API)
 - [x] Regras de retry (ex: 3 tentativas + DLQ)
