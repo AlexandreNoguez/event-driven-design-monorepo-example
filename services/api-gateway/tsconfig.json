@@ -9,8 +9,16 @@
     "allowSyntheticDefaultImports": true,
     "target": "ES2022",
     "sourceMap": true,
-    "rootDir": "./src",
+    "rootDir": "../..",
     "outDir": "./dist",
+    "paths": {
+      "@event-pipeline/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@event-pipeline/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
     "incremental": true,
     "types": [
       "node"

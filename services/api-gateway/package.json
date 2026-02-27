@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "pnpm exec nest start",
-    "dev": "pnpm exec nest start --watch",
+    "prestart": "pnpm --filter @event-pipeline/shared build",
+    "predev": "pnpm --filter @event-pipeline/shared build",
+    "start": "pnpm exec nest start --entryFile services/api-gateway/src/main",
+    "dev": "pnpm exec nest start --watch --entryFile services/api-gateway/src/main",
     "build": "pnpm exec nest build",
-    "start:prod": "node dist/main.js",
-    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "start:prod": "node dist/services/api-gateway/src/main.js",
+    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit --incremental false",
     "lint": "pnpm exec eslint src"
   },
   "dependencies": {
