@@ -103,10 +103,12 @@ pnpm docker:up:infra
 pnpm docker:down
 pnpm docker:down:infra
 pnpm docker:logs
+pnpm smoke
 ```
 
 > `docker:up` sobe a stack dev completa (`infra/docker-compose.yml` + `infra/docker-compose.dev.yml`).
 > Use `docker:up:infra` se quiser subir somente a infraestrutura.
+> `smoke` executa um teste E2E automatizado (gateway -> MinIO -> pipeline -> projection/audit/notification/mailhog).
 
 ### Infra local (Docker Compose)
 
