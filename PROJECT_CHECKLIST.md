@@ -207,12 +207,12 @@
 ---
 
 ## 8) Frontend — user-web (Vite)
-- [ ] Criar app `user-web`
-- [ ] Login (Keycloak)
-- [ ] Tela de upload
-- [ ] Tela de “meus uploads”
-- [ ] Tela de detalhe: status por etapa + timeline
-- [ ] Polling (MVP) ou SSE/WebSocket (v0.2)
+- [x] Criar app `user-web`
+- [x] Login (Keycloak)
+- [x] Tela de upload
+- [x] Tela de “meus uploads”
+- [x] Tela de detalhe: status por etapa + timeline
+- [x] Polling (MVP) ou SSE/WebSocket (v0.2)
 
 ---
 
@@ -243,7 +243,7 @@
 ## 11) Documentação
 - [ ] `README.md` com:
   - [x] como subir infra
-  - [ ] como rodar serviços e front
+  - [x] como rodar serviços e front
   - [x] URLs locais (RabbitMQ, Keycloak, MinIO, Mailhog)
   - [ ] passo a passo de teste manual do fluxo
 - [x] `docs/architecture.md` com diagramas (flow + sequence)

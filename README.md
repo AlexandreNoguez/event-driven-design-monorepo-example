@@ -95,9 +95,13 @@ pnpm docker:logs
 
 ```bash
 pnpm dev
+pnpm dev:user-web
 pnpm lint
+pnpm lint:user-web
 pnpm format
 pnpm test
+pnpm typecheck:user-web
+pnpm build:user-web
 pnpm test:unit
 pnpm test:contracts
 pnpm docker:up
@@ -113,6 +117,7 @@ pnpm test:e2e
 
 > `docker:up` sobe a stack dev completa (`infra/docker-compose.yml` + `infra/docker-compose.dev.yml`).
 > Use `docker:up:infra` se quiser subir somente a infraestrutura.
+> `dev:user-web` sobe apenas o app frontend `user-web`.
 > `smoke` executa um teste E2E automatizado (gateway -> MinIO -> pipeline -> projection/audit/notification/mailhog).
 > `smoke:rejected` executa o fluxo E2E de falha (arquivo rejeitado pelo validator, com audit + notification).
 > `smoke:timeout` executa o fluxo E2E de timeout (workers de branch pausados, deadline forçado, `ProcessingTimedOut.v1`, audit + notification).
@@ -161,6 +166,8 @@ pnpm docker:down:infra
   - realm: `event-pipeline`
   - roles: `user`, `admin`
   - clients: `user-web`, `admin-web`, `api-gateway`
+  - `user-web` usa login real no Keycloak local
+  - usuarios semeados para teste continuam no provedor de identidade, nao no banco do dominio
   - usuarios demo:
     - `demo-user` / `demo123` (role `user`)
     - `demo-admin` / `demo123` (roles `user`, `admin`)
@@ -211,8 +218,98 @@ A proposta central: um **pipeline de upload** em etapas (validar → gerar thumb
 **Frontend**
 
 - **React + Vite** (recomendado para admin e user)
+- `user-web` ja iniciado com arquitetura base:
+  - stores globais em Zustand
+  - hooks para regras/effects
+  - `components/ui` apenas apresentacionais
+  - `components/feature` para composição sem regra de negócio
 
 > Next.js também funciona, mas Vite vai te dar menos atrito no começo e é perfeito para apps internos.
+
+## 3.1) Rodando o `user-web`
+
+O `user-web` foi iniciado como app React + Vite em `apps/user-web`, seguindo a regra de frontend:
+
+- estado global em `stores/`
+- integração com API em `api/`
+- regras de negócio em `hooks/`
+- Material UI como biblioteca visual base
+- componentes visuais em `components/ui/`
+- componentes de composição em `components/feature/`
+- telas separadas para `login`, `demo access` e dashboard inicial
+
+Preparação:
+
+```bash
+cp apps/user-web/.env.example apps/user-web/.env
+```
+
+Para o fluxo recomendado, o login do `user-web` usa sempre o Keycloak local.
+
+Execução:
+
+```bash
+pnpm install
+pnpm docker:up
+pnpm dev:user-web
+```
+
+URL local esperada:
+
+- `user-web`: `http://localhost:5173`
+
+Autenticação e teste local:
+
+- `VITE_AUTH_PROVIDER=demo`
+  - usa a tela de login com as credenciais semeadas localmente
+  - essas credenciais são trocadas por um token real no Keycloak local
+  - é apenas um atalho de UX para as contas semeadas
+- `VITE_AUTH_PROVIDER=keycloak`
+  - usa a mesma tela de login, mas troca usuário/senha por um token real do Keycloak local
+  - exige o Keycloak da stack local disponível
+  - para este modo, configure o `api-gateway` com:
+
+```env
+API_GATEWAY_AUTH_DEV_BYPASS=false
+JWT_ISSUER_URL=http://localhost:8080/realms/event-pipeline
+```
+
+- credenciais de teste:
+  - `demo-user` / `demo123`
+  - `demo-admin` / `demo123`
+- `VITE_UPLOAD_POLLING_INTERVAL_MS`
+  - controla o polling do MVP para listagem e detalhe de upload
+
+Observação arquitetural:
+
+- para manter o design profissional, a autenticação de teste não foi persistida no banco do domínio
+- a fonte de identidade continua sendo o Keycloak local (`infra/keycloak/import/realm-event-pipeline.json`)
+- a tela “demo access” apenas expõe contas semeadas no Keycloak para facilitar teste imediato
+- o “seed” de usuários de demonstração acontece no realm importado do Keycloak, que é o lugar correto para identidades
+- no Docker dev, o `api-gateway` valida `iss` como `http://localhost:8080/realms/event-pipeline`
+- no Docker dev, o `api-gateway` busca JWKS internamente em `http://keycloak:8080/.../certs`, evitando conflito entre hostname externo e rede interna
+
+Se aparecer `401 Missing Authorization header` ao tentar `POST /uploads`, isso indica um destes cenários:
+
+1. o frontend ainda não concluiu o login (sem bearer token em memória)
+2. o login no Keycloak falhou e a tela continuou sem autenticação
+3. o app está rodando com código antigo em cache/sem rebuild
+
+Correções:
+
+1. subir a stack completa com Keycloak e manter `VITE_AUTH_PROVIDER=demo` ou `VITE_AUTH_PROVIDER=keycloak`
+2. confirmar login bem-sucedido antes de tentar upload
+3. reiniciar o `user-web` após `pnpm install`
+
+Se o login falhar por timeout no Keycloak:
+
+1. use `http://localhost:8080/admin/` ou `http://localhost:8080/realms/event-pipeline/.well-known/openid-configuration` para validar a disponibilidade, nao apenas a raiz `/`
+2. reinicie a stack para aplicar a configuracao de hostname corrigida:
+
+```bash
+pnpm docker:down
+pnpm docker:up
+```
 
 ---
 

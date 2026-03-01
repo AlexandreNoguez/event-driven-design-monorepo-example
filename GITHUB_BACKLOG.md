@@ -160,6 +160,12 @@ Status atual:
 ### Issue 13: Criar `app:user-web` v0 com arquitetura frontend obrigatória
 - Labels: `frontend`
 - Descrição: Implementar telas mínimas de upload + listagem/status seguindo padrão: estado global em Zustand, lógica somente em hooks, componentes apenas apresentação.
+- Status atual:
+  - base estrutural iniciada em `apps/user-web` com React + Vite + TypeScript
+  - stores (`zustand`), hooks, API adapters e componentes de apresentação já separados
+  - UI base migrada para Material UI
+  - telas de login, demo access, dashboard, upload, listagem, detalhe e polling do MVP já existem
+  - login pode operar em `demo` ou `keycloak` local; acabamento final e validação completa seguem pendentes
 - Critérios de aceite:
   - Store global com Zustand para estado de upload/status
   - Hooks centralizando regras e efeitos (`useUploadFlow`, `useUploadsList`)
@@ -293,6 +299,7 @@ Status atual:
 - M0: Estrutura e qualidade prontas para acelerar execução.
 - M1: Infra local confiável + contratos v1 fechados.
 - M2: Primeiro fluxo visível em UI (`user-web`) com status de processamento.
+  - Em progresso: base arquitetural do `user-web` criada; falta fechar fluxo visual completo
 - M3: Pipeline assíncrono completo (validação + thumbnail + metadata + conclusão).
 - M4: Confiabilidade operacional (outbox, DLQ, admin, audit, notificação).
 - M5: Evidência técnica forte para portfólio (testes + docs + demo).
