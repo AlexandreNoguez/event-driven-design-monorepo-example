@@ -1,4 +1,4 @@
-# Saga (v0.2 Roadmap, Shadow Mode Started)
+# Saga (v0.2 Roadmap, Cutover Started)
 
 ## Objetivo
 
@@ -9,10 +9,12 @@ Estado atual:
 - O projeto já é **Event-Driven Design (EDD)**.
 - A coordenação de conclusão do pipeline está **implícita** no `projection-service`.
 - `ProcessingCompleted.v1` já é publicado (via outbox no `projection-service`).
-- Um **Process Manager em modo shadow** já foi introduzido dentro do `projection-service`.
-- O shadow state já é persistido em `processing_manager.processing_sagas`.
-- A idempotência do shadow mode já é persistida em `processing_manager.processed_events`.
-- O resultado da saga calculada em shadow já é comparado com o `ProcessingCompleted.v1` atual.
+- Um **Process Manager explícito** já foi introduzido dentro do `projection-service`.
+- O estado da saga já é persistido em `processing_manager.processing_sagas`.
+- A idempotência da saga já é persistida em `processing_manager.processed_events`.
+- O Process Manager já publica `ProcessingCompleted.v1`, `ProcessingFailed.v1` e `ProcessingTimedOut.v1` via outbox.
+- A publicação terminal pode ser revertida por config (`PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS=false`).
+- A comparação entre estado calculado e evento terminal observado continua registrada para validação de consistência.
 
 Estado alvo (v0.2):
 
@@ -39,7 +41,7 @@ Hoje (MVP):
 - `projection-service` projeta eventos no read model
 - e também detecta conclusão para publicar `ProcessingCompleted.v1`
 
-Futuro (v0.2):
+Baseline atual (v0.2):
 
 - Um **Process Manager** acompanha o progresso por `fileId`/`correlationId`
 - Publica eventos de término (`completed`, `failed`, `timed out`)
@@ -56,9 +58,9 @@ Futuro (v0.2):
 - `MetadataExtracted.v1`
 - (futuro) eventos de erro/timeout das etapas
 
-### Saídas da Saga (planejadas)
+### Saídas atuais da Saga
 
-- `ProcessingCompleted.v1` (migrar producer do `projection-service` para o Process Manager)
+- `ProcessingCompleted.v1`
 - `ProcessingFailed.v1` (novo)
 - `ProcessingTimedOut.v1` (novo)
 
@@ -97,13 +99,13 @@ Compensações (v0.2, mínimas):
 - Prioridade em compensação **lógica** (estado final + notificação + audit)
 - Compensação física (ex.: cleanup de thumbnail/objeto) pode entrar depois, com política explícita
 
-## Persistência sugerida da saga
+## Persistência atual da saga
 
-Schema/tabelas (proposta):
+Schema/tabelas:
 
 - `processing_manager.processing_sagas`
-- `processing_manager.processing_saga_events` (opcional, para rastreabilidade)
-- `processing_manager.outbox_events` (se o Process Manager publicar via outbox)
+- `processing_manager.processed_events`
+- `projection_service.outbox_events` (outbox compartilhado do `projection-service`, usado pelo Process Manager)
 
 Campos mínimos da saga:
 
@@ -135,11 +137,11 @@ Campos mínimos da saga:
 ## Estratégia de migração incremental (recomendada)
 
 1. **Design + ADR + checklist** (concluído)
-2. Implementar Process Manager em modo "shadow" (concluído no baseline atual)
-3. Validar consistência entre conclusão atual (`projection-service`) e conclusão calculada pela saga (iniciado; smoke inicial validado)
-4. Mover publicação de `ProcessingCompleted.v1` para o Process Manager (com outbox)
-5. Adicionar `ProcessingFailed.v1` / `ProcessingTimedOut.v1`
-6. Atualizar `projection-service` para consumir eventos da saga, mantendo foco em read model
+2. Implementar Process Manager em modo "shadow" (concluído)
+3. Validar consistência entre conclusão atual (`projection-service`) e conclusão calculada pela saga (concluído no baseline de sucesso; cenários de falha/timeout cobertos em unit tests)
+4. Mover publicação de `ProcessingCompleted.v1` para o Process Manager (concluído, com rollback por flag)
+5. Adicionar `ProcessingFailed.v1` / `ProcessingTimedOut.v1` (concluído)
+6. Atualizar `projection-service` para consumir eventos da saga, mantendo foco em read model (concluído)
 
 ## O que não muda
 

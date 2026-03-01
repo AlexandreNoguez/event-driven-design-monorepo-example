@@ -1,0 +1,26 @@
+{
+  "messageId": "corr-456:file-456:ProcessingTimedOut.v1",
+  "kind": "event",
+  "type": "ProcessingTimedOut.v1",
+  "occurredAt": "2026-03-01T18:05:00.000Z",
+  "correlationId": "corr-456",
+  "causationId": "evt-validated-456",
+  "producer": "projection-service",
+  "version": 1,
+  "payload": {
+    "fileId": "file-456",
+    "status": "failed",
+    "completedSteps": [
+      "upload",
+      "validation"
+    ],
+    "pendingSteps": [
+      "thumbnail",
+      "metadata"
+    ],
+    "timeoutAt": "2026-03-01T18:05:00.000Z",
+    "deadlineAt": "2026-03-01T18:04:30.000Z",
+    "userId": "demo-user",
+    "tenantId": "tenant-1"
+  }
+}

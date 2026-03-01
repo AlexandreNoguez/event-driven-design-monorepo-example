@@ -57,6 +57,28 @@ export class PostgresNotificationRepository implements NotificationRepositoryPor
     return Boolean(result.rows[0]?.exists);
   }
 
+  async hasSentTerminalNotification(fileId: string, correlationId: string): Promise<boolean> {
+    const result = await this.pool.query<{ exists: boolean }>(
+      `
+        select exists(
+          select 1
+          from notification_service.notification_logs
+          where file_id = $1
+            and correlation_id = $2
+            and status = 'sent'
+            and template_key in (
+              'file-rejected',
+              'processing-failed',
+              'processing-timed-out'
+            )
+        ) as exists
+      `,
+      [fileId, correlationId],
+    );
+
+    return Boolean(result.rows[0]?.exists);
+  }
+
   async recordNotificationAttempt(input: NotificationLogAttemptInput): Promise<NotificationLogAttempt> {
     const result = await this.pool.query<NotificationLogAttemptRow>(
       `

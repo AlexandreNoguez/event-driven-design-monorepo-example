@@ -1,0 +1,22 @@
+{
+  "messageId": "corr-123:file-123:ProcessingFailed.v1",
+  "kind": "event",
+  "type": "ProcessingFailed.v1",
+  "occurredAt": "2026-03-01T18:00:00.000Z",
+  "correlationId": "corr-123",
+  "causationId": "evt-rejected-123",
+  "producer": "projection-service",
+  "version": 1,
+  "payload": {
+    "fileId": "file-123",
+    "status": "failed",
+    "completedSteps": [
+      "upload"
+    ],
+    "failedStage": "validation",
+    "failureCode": "UNSUPPORTED_SIGNATURE",
+    "failureReason": "The uploaded bytes do not match the declared PNG content type.",
+    "userId": "demo-user",
+    "tenantId": "tenant-1"
+  }
+}

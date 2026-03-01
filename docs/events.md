@@ -19,7 +19,9 @@ Referências em código:
 | event | `FileRejected.v1` | `domain.events` | `files.rejected.v1` | `validator-service` | `projection-service`, `notification-service`, `audit-service` | implemented |
 | event | `ThumbnailGenerated.v1` | `domain.events` | `thumbnails.generated.v1` | `thumbnail-service` | `projection-service`, `audit-service` | implemented |
 | event | `MetadataExtracted.v1` | `domain.events` | `metadata.extracted.v1` | `extractor-service` | `projection-service`, `audit-service` | implemented |
-| event | `ProcessingCompleted.v1` | `domain.events` | `processing.completed.v1` | `projection-service` | `projection-service`, `notification-service`, `audit-service` | implemented |
+| event | `ProcessingCompleted.v1` | `domain.events` | `processing.completed.v1` | `projection-service (process-manager)` | `projection-service`, `notification-service`, `audit-service` | implemented |
+| event | `ProcessingFailed.v1` | `domain.events` | `processing.failed.v1` | `projection-service (process-manager)` | `projection-service`, `notification-service`, `audit-service` | implemented |
+| event | `ProcessingTimedOut.v1` | `domain.events` | `processing.timed-out.v1` | `projection-service (process-manager)` | `projection-service`, `notification-service`, `audit-service` | implemented |
 | event | `DlqRedriveCompleted.v1` | `domain.events` | `operations.dlq.redrive.completed.v1` | `api-gateway` | `audit-service` (principal), `projection-service` (ignora) | implemented |
 
 ## 2. Contratos v1 (payload mínimo)
@@ -135,6 +137,32 @@ Payload mínimo:
 - `requestedByUserName: string`
 - `failures: Array<{ index: number; reason: string }>`
 
+### 2.10 `ProcessingFailed.v1`
+
+Payload mínimo:
+
+- `fileId: string`
+- `status: "failed"`
+- `completedSteps: string[]`
+- `failedStage: string`
+- `failureCode?: string`
+- `failureReason?: string`
+- `userId?: string`
+- `tenantId?: string`
+
+### 2.11 `ProcessingTimedOut.v1`
+
+Payload mínimo:
+
+- `fileId: string`
+- `status: "failed"`
+- `completedSteps: string[]`
+- `pendingSteps: string[]`
+- `timeoutAt: string`
+- `deadlineAt: string`
+- `userId?: string`
+- `tenantId?: string`
+
 ## 3. Exemplos JSON (envelope completo)
 
 Arquivos:
@@ -147,6 +175,8 @@ Arquivos:
 - `docs/events/examples/thumbnail-generated.v1.event.json`
 - `docs/events/examples/metadata-extracted.v1.event.json`
 - `docs/events/examples/processing-completed.v1.event.json`
+- `docs/events/examples/processing-failed.v1.event.json`
+- `docs/events/examples/processing-timed-out.v1.event.json`
 - `docs/events/examples/dlq-redrive-completed.v1.event.json`
 
 ## 4. Regras de compatibilidade e evolução (`.v2`)
@@ -183,5 +213,8 @@ Mudanças breaking, por exemplo:
 
 ## 5. Status do fluxo fim-a-fim (MVP atual)
 
-- O fluxo MVP atual publica `ProcessingCompleted.v1` a partir do `projection-service` quando o read model detecta conclusão (`thumbnail` + `metadata` concluídos).
-- O `projection-service` agora usa `outbox_events` + poller para publicar `ProcessingCompleted.v1` após a transação da projeção (mais robusto para demo e evolução do item `7`).
+- O fluxo atual publica eventos terminais a partir do **Process Manager** embutido no `projection-service`.
+- `ProcessingCompleted.v1` é emitido quando a Saga calcula sucesso terminal.
+- `ProcessingFailed.v1` é emitido em falhas terminais (ex.: rejeição na validação).
+- `ProcessingTimedOut.v1` é emitido quando a Saga excede o `deadlineAt`.
+- A publicação continua usando `outbox_events` + poller no `projection-service`, mas a decisão terminal saiu do read model e foi movida para o Process Manager.

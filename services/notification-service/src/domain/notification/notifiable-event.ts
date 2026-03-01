@@ -1,6 +1,10 @@
 import type { DomainEventV1 } from '@event-pipeline/shared';
 
-export type NotifiableEventType = 'FileRejected.v1' | 'ProcessingCompleted.v1';
+export type NotifiableEventType =
+  | 'FileRejected.v1'
+  | 'ProcessingCompleted.v1'
+  | 'ProcessingFailed.v1'
+  | 'ProcessingTimedOut.v1';
 
 export type NotifiableEvent = {
   [K in NotifiableEventType]: DomainEventV1<K>;
@@ -56,6 +60,29 @@ export function isNotifiableEvent(value: unknown): value is NotifiableEvent {
     return typeof payload.code === 'string' && typeof payload.reason === 'string';
   }
 
+  if (candidate.type === 'ProcessingFailed.v1') {
+    return (
+      typeof payload.status === 'string' &&
+      payload.status === 'failed' &&
+      Array.isArray(payload.completedSteps) &&
+      payload.completedSteps.every((value) => typeof value === 'string') &&
+      typeof payload.failedStage === 'string'
+    );
+  }
+
+  if (candidate.type === 'ProcessingTimedOut.v1') {
+    return (
+      typeof payload.status === 'string' &&
+      payload.status === 'failed' &&
+      Array.isArray(payload.completedSteps) &&
+      payload.completedSteps.every((value) => typeof value === 'string') &&
+      Array.isArray(payload.pendingSteps) &&
+      payload.pendingSteps.every((value) => typeof value === 'string') &&
+      typeof payload.timeoutAt === 'string' &&
+      typeof payload.deadlineAt === 'string'
+    );
+  }
+
   return (
     typeof payload.status === 'string' &&
     Array.isArray(payload.completedSteps) &&
@@ -64,7 +91,12 @@ export function isNotifiableEvent(value: unknown): value is NotifiableEvent {
 }
 
 export function isNotifiableEventType(type: string): type is NotifiableEventType {
-  return type === 'FileRejected.v1' || type === 'ProcessingCompleted.v1';
+  return (
+    type === 'FileRejected.v1' ||
+    type === 'ProcessingCompleted.v1' ||
+    type === 'ProcessingFailed.v1' ||
+    type === 'ProcessingTimedOut.v1'
+  );
 }
 
 export function resolveRecipientForEvent(event: NotifiableEvent, config?: {
@@ -116,6 +148,34 @@ export function buildNotificationTemplate(event: NotifiableEvent): NotificationT
         ].join('\n'),
       };
     }
+    case 'ProcessingFailed.v1':
+      return {
+        templateKey: 'processing-failed',
+        subject: `[Upload] Processamento falhou (${event.payload.fileId})`,
+        text: [
+          `O processamento do arquivo ${event.payload.fileId} falhou.`,
+          `status: ${event.payload.status}`,
+          `etapas concluídas: ${event.payload.completedSteps.join(', ') || '(nenhuma)'}`,
+          `etapa com falha: ${event.payload.failedStage}`,
+          `codigo: ${event.payload.failureCode ?? '(nao informado)'}`,
+          `motivo: ${event.payload.failureReason ?? '(nao informado)'}`,
+          `correlationId: ${event.correlationId}`,
+        ].join('\n'),
+      };
+    case 'ProcessingTimedOut.v1':
+      return {
+        templateKey: 'processing-timed-out',
+        subject: `[Upload] Processamento expirou (${event.payload.fileId})`,
+        text: [
+          `O processamento do arquivo ${event.payload.fileId} excedeu o tempo limite.`,
+          `status: ${event.payload.status}`,
+          `etapas concluídas: ${event.payload.completedSteps.join(', ') || '(nenhuma)'}`,
+          `etapas pendentes: ${event.payload.pendingSteps.join(', ') || '(nenhuma)'}`,
+          `deadlineAt: ${event.payload.deadlineAt}`,
+          `timeoutAt: ${event.payload.timeoutAt}`,
+          `correlationId: ${event.correlationId}`,
+        ].join('\n'),
+      };
   }
 
   return assertNever(event);

@@ -192,12 +192,17 @@
   - [x] Definir timeouts de processo e política de expiração
   - [x] Definir eventos de término planejados (`ProcessingFailed.v1`, `ProcessingTimedOut.v1`)
   - [x] Planejar migração da regra de conclusão de `ProcessingCompleted.v1` do `projection-service` para a Saga
-  - [ ] Definir testes da Saga (happy path, falha, timeout) para v0.2
+  - [x] Definir e implementar testes da Saga (happy path, falha, timeout) para v0.2
 - [x] Implementar Process Manager da Saga em modo shadow (sem cutover)
   - [x] Persistir estado em `processing_manager.processing_sagas`
   - [x] Persistir idempotência em `processing_manager.processed_events`
   - [x] Comparar resultado shadow com o `ProcessingCompleted.v1` atual
   - [x] Validar consistência inicial com smoke (`comparison_status=match`)
+- [x] Iniciar cutover controlado da Saga
+  - [x] Mover `ProcessingCompleted.v1` para o Process Manager
+  - [x] Introduzir `ProcessingFailed.v1`
+  - [x] Introduzir `ProcessingTimedOut.v1`
+  - [x] Manter rollback por `PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS`
 
 ---
 
@@ -223,6 +228,7 @@
 
 ## 10) Testes
 - [x] Unit tests (mínimo) para handlers de eventos/commands
+  - [x] Saga unit tests explícitos: `completed`, `failed`, `timed-out`
 - [x] Contract tests para mensagens (schema/validation)
 - [x] Teste de fluxo E2E local:
   - [x] upload → validated → thumbnail+metadata → completed

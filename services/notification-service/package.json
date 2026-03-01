@@ -9,7 +9,7 @@
     "dev": "pnpm exec nest start --watch --entryFile services/notification-service/src/main",
     "build": "pnpm exec nest build",
     "start:prod": "node dist/services/notification-service/src/main.js",
-    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit --incremental false",
     "lint": "pnpm exec eslint src"
   },
   "dependencies": {

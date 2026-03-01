@@ -47,6 +47,33 @@ export class HandleNotificationEventUseCase {
       return { skipped: true, sent: false };
     }
 
+    if (
+      isFailureNotificationEvent(event.type) &&
+      await this.repository.hasSentTerminalNotification(event.payload.fileId, event.correlationId)
+    ) {
+      await this.repository.markProcessedEvent({
+        eventId: event.messageId,
+        consumerName,
+        correlationId: event.correlationId,
+        messageType: event.type,
+        sourceProducer: event.producer,
+      });
+
+      this.logger.log(JSON.stringify(createJsonLogEntry({
+        level: 'info',
+        service: 'notification-service',
+        message: 'Skipped duplicate terminal failure notification.',
+        correlationId: event.correlationId,
+        causationId: event.causationId,
+        messageId: event.messageId,
+        messageType: event.type,
+        fileId: event.payload.fileId,
+        userId: event.payload.userId,
+        metadata: { consumerName },
+      })));
+      return { skipped: true, sent: false };
+    }
+
     const template = buildNotificationTemplate(event);
     const recipient = resolveRecipientForEvent(event, {
       fallbackRecipient: this.config.fallbackRecipient,
@@ -135,4 +162,12 @@ export class HandleNotificationEventUseCase {
       throw error;
     }
   }
+}
+
+function isFailureNotificationEvent(type: string): boolean {
+  return (
+    type === 'FileRejected.v1' ||
+    type === 'ProcessingFailed.v1' ||
+    type === 'ProcessingTimedOut.v1'
+  );
 }

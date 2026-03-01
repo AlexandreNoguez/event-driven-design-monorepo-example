@@ -10,6 +10,8 @@ export type EventTypeV1 =
   | 'ThumbnailGenerated.v1'
   | 'MetadataExtracted.v1'
   | 'ProcessingCompleted.v1'
+  | 'ProcessingFailed.v1'
+  | 'ProcessingTimedOut.v1'
   | 'DlqRedriveCompleted.v1';
 
 export type MessageTypeV1 = CommandTypeV1 | EventTypeV1;
@@ -23,6 +25,8 @@ export type EventRoutingKeyV1 =
   | 'thumbnails.generated.v1'
   | 'metadata.extracted.v1'
   | 'processing.completed.v1'
+  | 'processing.failed.v1'
+  | 'processing.timed-out.v1'
   | 'operations.dlq.redrive.completed.v1';
 
 export interface FileActorRef {
@@ -86,6 +90,24 @@ export interface ProcessingCompletedPayload extends FileActorRef {
   completedSteps: string[];
 }
 
+export interface ProcessingFailedPayload extends FileActorRef {
+  fileId: string;
+  status: 'failed';
+  completedSteps: string[];
+  failedStage: string;
+  failureCode?: string;
+  failureReason?: string;
+}
+
+export interface ProcessingTimedOutPayload extends FileActorRef {
+  fileId: string;
+  status: 'failed';
+  completedSteps: string[];
+  pendingSteps: string[];
+  timeoutAt: string;
+  deadlineAt: string;
+}
+
 export interface DlqRedriveCompletedPayload {
   operationCorrelationId: string;
   queue: string;
@@ -115,6 +137,8 @@ export interface EventPayloadMapV1 {
   'ThumbnailGenerated.v1': ThumbnailGeneratedPayload;
   'MetadataExtracted.v1': MetadataExtractedPayload;
   'ProcessingCompleted.v1': ProcessingCompletedPayload;
+  'ProcessingFailed.v1': ProcessingFailedPayload;
+  'ProcessingTimedOut.v1': ProcessingTimedOutPayload;
   'DlqRedriveCompleted.v1': DlqRedriveCompletedPayload;
 }
 
@@ -130,6 +154,8 @@ export const EVENT_ROUTING_KEYS_V1: { [K in EventTypeV1]: EventRoutingKeyV1 } = 
   'ThumbnailGenerated.v1': 'thumbnails.generated.v1',
   'MetadataExtracted.v1': 'metadata.extracted.v1',
   'ProcessingCompleted.v1': 'processing.completed.v1',
+  'ProcessingFailed.v1': 'processing.failed.v1',
+  'ProcessingTimedOut.v1': 'processing.timed-out.v1',
   'DlqRedriveCompleted.v1': 'operations.dlq.redrive.completed.v1',
 };
 
@@ -222,7 +248,25 @@ export const MESSAGE_CATALOG_V1: Record<MessageTypeV1, MessageCatalogEntryV1> = 
     type: 'ProcessingCompleted.v1',
     exchange: MESSAGE_EXCHANGES.events,
     routingKey: EVENT_ROUTING_KEYS_V1['ProcessingCompleted.v1'],
-    producer: 'projection-service',
+    producer: 'projection-service (process-manager)',
+    consumers: ['projection-service', 'notification-service', 'audit-service'],
+    status: 'implemented',
+  },
+  'ProcessingFailed.v1': {
+    kind: 'event',
+    type: 'ProcessingFailed.v1',
+    exchange: MESSAGE_EXCHANGES.events,
+    routingKey: EVENT_ROUTING_KEYS_V1['ProcessingFailed.v1'],
+    producer: 'projection-service (process-manager)',
+    consumers: ['projection-service', 'notification-service', 'audit-service'],
+    status: 'implemented',
+  },
+  'ProcessingTimedOut.v1': {
+    kind: 'event',
+    type: 'ProcessingTimedOut.v1',
+    exchange: MESSAGE_EXCHANGES.events,
+    routingKey: EVENT_ROUTING_KEYS_V1['ProcessingTimedOut.v1'],
+    producer: 'projection-service (process-manager)',
     consumers: ['projection-service', 'notification-service', 'audit-service'],
     status: 'implemented',
   },

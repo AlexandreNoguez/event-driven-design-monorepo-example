@@ -673,7 +673,7 @@ Status funcional atual (smoke-test completo validado):
 - timeline projetada ate `ProcessingCompleted.v1`
 - `notification-service` envia e-mail para Mailhog no evento `ProcessingCompleted.v1`
 - `projection-service` publica `ProcessingCompleted.v1` via outbox (MVP robustecido)
-- `projection-service` tambem executa um **shadow process manager** que persiste estado em `processing_manager.processing_sagas` e compara o resultado calculado com a conclusao atual (`comparison_status=match` no smoke validado)
+- `projection-service` executa o **Process Manager da Saga**, persiste estado em `processing_manager.processing_sagas`, publica eventos terminais via outbox e continua registrando `comparison_status` para validar consistência
 
 Status atual da fase:
 
@@ -684,18 +684,21 @@ Status atual da fase:
 - Compose full dev (`infra` + `backends`) criado em `infra/docker-compose.dev.yml`
 - Scripts raiz atualizados: `docker:up` (stack completa), `docker:up:infra`, `docker:down`, `docker:logs`
 - `docs/architecture.md` agora consolida topologia, fluxos, boundaries DDD e estrategia de confiabilidade
-- Próxima etapa principal: fechar a suite da Saga (`happy path`, `failure`, `timeout`) e depois fazer o cutover controlado do terminal event para o process manager em v0.2
+- Cutover da Saga já iniciado: o Process Manager é o dono de `ProcessingCompleted.v1`, `ProcessingFailed.v1` e `ProcessingTimedOut.v1`, com rollback por flag de config
+- Próxima etapa principal: ampliar evidência E2E do cenário de timeout e então seguir para os frontends
 
 ---
 
-## 13.2) Evolução da Saga (v0.2 roadmap + shadow mode)
+## 13.2) Evolução da Saga (v0.2 roadmap + cutover controlado)
 
 O projeto **já é Event-Driven Design** e atualmente coordena a conclusão do pipeline de forma implícita no `projection-service`.
 
 O estado atual da adoção é:
 
-- o `projection-service` continua sendo o produtor oficial de `ProcessingCompleted.v1`
-- um **Process Manager em modo shadow** já observa os mesmos eventos, persiste estado próprio e compara seu resultado com a conclusão atual
+- o `projection-service` continua sendo o host do módulo, mas a decisão terminal agora pertence ao **Process Manager**
+- o Process Manager já publica `ProcessingCompleted.v1`, `ProcessingFailed.v1` e `ProcessingTimedOut.v1`
+- o read model continua projetando esses eventos, sem decidir a emissão
+- existe rollback operacional por `PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS`
 
 Para a evolução v0.2 (sem quebrar o MVP atual), a direção arquitetural definida continua sendo:
 
@@ -710,6 +713,6 @@ Documentação da decisão e roadmap:
 
 Observação:
 
-- A adoção da Saga segue incremental: primeiro shadow mode, depois validação de consistência, depois cutover do terminal event. O fluxo event-driven atual permanece intacto no MVP.
+- A adoção da Saga segue incremental e controlada: shadow state + comparação continuam ativos, enquanto a publicação terminal já foi movida para o Process Manager. O fluxo continua 100% event-driven.
 
 ---

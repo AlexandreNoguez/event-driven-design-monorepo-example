@@ -24,6 +24,7 @@ export interface MarkProcessedNotificationEventInput {
 
 export interface NotificationRepositoryPort {
   hasProcessedEvent(eventId: string, consumerName: string): Promise<boolean>;
+  hasSentTerminalNotification(fileId: string, correlationId: string): Promise<boolean>;
   recordNotificationAttempt(input: NotificationLogAttemptInput): Promise<NotificationLogAttempt>;
   markNotificationSent(notificationId: number, providerMessageId?: string): Promise<void>;
   markNotificationFailed(notificationId: number, errorMessage: string): Promise<void>;
