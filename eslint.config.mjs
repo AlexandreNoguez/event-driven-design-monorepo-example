@@ -26,4 +26,12 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  {
+    files: ['apps/*/src/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
 );
