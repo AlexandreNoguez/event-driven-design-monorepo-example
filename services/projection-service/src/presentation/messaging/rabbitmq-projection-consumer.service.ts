@@ -5,6 +5,7 @@ import {
   createJsonLogEntry,
   createRabbitMqConsumerJsonLogLine,
 } from '@event-pipeline/shared';
+import { TrackProcessingSagaUseCase } from '../../application/process-manager/track-processing-saga.use-case';
 import { ProjectDomainEventUseCase } from '../../application/projection/project-domain-event.use-case';
 import { isProjectableDomainEvent } from '../../domain/projection/projectable-event';
 import { ProjectionServiceConfigService } from '../../infrastructure/config/projection-service-config.service';
@@ -18,6 +19,7 @@ export class RabbitMqProjectionConsumerService implements OnModuleInit, OnModule
 
   constructor(
     private readonly projectDomainEventUseCase: ProjectDomainEventUseCase,
+    private readonly trackProcessingSagaUseCase: TrackProcessingSagaUseCase,
     private readonly config: ProjectionServiceConfigService,
   ) {}
 
@@ -140,6 +142,10 @@ export class RabbitMqProjectionConsumerService implements OnModuleInit, OnModule
 
     try {
       await this.projectDomainEventUseCase.execute({
+        event: parsed,
+        routingKey: message.fields.routingKey,
+      });
+      await this.trackProcessingSagaUseCase.execute({
         event: parsed,
         routingKey: message.fields.routingKey,
       });

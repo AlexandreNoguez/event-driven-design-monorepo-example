@@ -11,6 +11,10 @@ const DEFAULTS = {
   outboxPollIntervalMs: 2000,
   outboxBatchSize: 50,
   outboxMaxPublishAttempts: 5,
+  processManagerShadowEnabled: true,
+  processManagerShadowConsumerName: 'process-manager:shadow',
+  processManagerTimeoutMs: 300000,
+  processManagerTimeoutSweepIntervalMs: 10000,
 } as const;
 
 export const PROJECTION_SERVICE_ENV_FILE_PATHS = [
@@ -69,6 +73,34 @@ export class ProjectionServiceConfigService {
       DEFAULTS.outboxMaxPublishAttempts,
     );
   }
+
+  get processManagerShadowEnabled(): boolean {
+    return this.config.get<boolean>(
+      'PROJECTION_PROCESS_MANAGER_SHADOW_ENABLED',
+      DEFAULTS.processManagerShadowEnabled,
+    );
+  }
+
+  get processManagerShadowConsumerName(): string {
+    return this.config.get<string>(
+      'PROJECTION_PROCESS_MANAGER_SHADOW_CONSUMER_NAME',
+      DEFAULTS.processManagerShadowConsumerName,
+    );
+  }
+
+  get processManagerTimeoutMs(): number {
+    return this.config.get<number>(
+      'PROJECTION_PROCESS_MANAGER_TIMEOUT_MS',
+      DEFAULTS.processManagerTimeoutMs,
+    );
+  }
+
+  get processManagerTimeoutSweepIntervalMs(): number {
+    return this.config.get<number>(
+      'PROJECTION_PROCESS_MANAGER_TIMEOUT_SWEEP_INTERVAL_MS',
+      DEFAULTS.processManagerTimeoutSweepIntervalMs,
+    );
+  }
 }
 
 export function validateProjectionServiceEnvironment(
@@ -103,6 +135,24 @@ export function validateProjectionServiceEnvironment(
     DEFAULTS.outboxMaxPublishAttempts,
     'PROJECTION_SERVICE_OUTBOX_MAX_PUBLISH_ATTEMPTS',
   );
+  env.PROJECTION_PROCESS_MANAGER_SHADOW_ENABLED = toBoolean(
+    raw.PROJECTION_PROCESS_MANAGER_SHADOW_ENABLED,
+    DEFAULTS.processManagerShadowEnabled,
+    'PROJECTION_PROCESS_MANAGER_SHADOW_ENABLED',
+  );
+  env.PROJECTION_PROCESS_MANAGER_SHADOW_CONSUMER_NAME =
+    optionalString(raw.PROJECTION_PROCESS_MANAGER_SHADOW_CONSUMER_NAME) ??
+    DEFAULTS.processManagerShadowConsumerName;
+  env.PROJECTION_PROCESS_MANAGER_TIMEOUT_MS = toPositiveInt(
+    raw.PROJECTION_PROCESS_MANAGER_TIMEOUT_MS,
+    DEFAULTS.processManagerTimeoutMs,
+    'PROJECTION_PROCESS_MANAGER_TIMEOUT_MS',
+  );
+  env.PROJECTION_PROCESS_MANAGER_TIMEOUT_SWEEP_INTERVAL_MS = toPositiveInt(
+    raw.PROJECTION_PROCESS_MANAGER_TIMEOUT_SWEEP_INTERVAL_MS,
+    DEFAULTS.processManagerTimeoutSweepIntervalMs,
+    'PROJECTION_PROCESS_MANAGER_TIMEOUT_SWEEP_INTERVAL_MS',
+  );
   return env;
 }
 
@@ -118,6 +168,15 @@ function optionalString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : undefined;
+}
+
+function toBoolean(value: unknown, fallback: boolean, name: string): boolean {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new Error(`[projection-service] ${name} must be "true" or "false".`);
 }
 
 function toPositiveInt(value: unknown, fallback: number, name: string): number {
