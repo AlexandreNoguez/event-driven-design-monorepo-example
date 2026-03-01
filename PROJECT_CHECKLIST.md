@@ -217,12 +217,13 @@
 ---
 
 ## 10) Testes
-- [ ] Unit tests (mínimo) para handlers de eventos/commands
-- [ ] Contract tests para mensagens (schema/validation)
-- [ ] Teste de fluxo E2E local:
+- [x] Unit tests (mínimo) para handlers de eventos/commands
+- [x] Contract tests para mensagens (schema/validation)
+- [x] Teste de fluxo E2E local:
   - [x] upload → validated → thumbnail+metadata → completed
     - validado manualmente e automatizado via `pnpm smoke`
-  - [ ] cenário de erro → rejected → email → audit
+  - [x] cenário de erro → rejected → email → audit
+    - validado via `pnpm smoke:rejected`
 
 ---
 
@@ -243,7 +244,7 @@
 - [ ] Admin vê visão global e consegue reprocessar
 - [x] Eventos trafegam via RabbitMQ com DLQ configurado
 - [x] Outbox e idempotência implementados
-- [ ] Notificação (Mailhog) enviada em sucesso/falha
+- [x] Notificação (Mailhog) enviada em sucesso/falha
 - [x] Audit log registrando todo o fluxo
 
 ## 13) Arquitetura Frontend (regra obrigatória)

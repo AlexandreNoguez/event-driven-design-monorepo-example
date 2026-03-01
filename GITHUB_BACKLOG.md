@@ -260,7 +260,8 @@ Status atual:
 ## Milestone M5 — Testes e documentação de portfólio
 
 Status atual:
-- `23` parcialmente concluida: happy path automatizado via `pnpm smoke` (`POST /uploads` -> presigned PUT -> confirm -> projection/audit/notification/mailhog)
+- `22` concluida no baseline: unit tests minimos com `node:test` + contract test do catalogo/examples v1
+- `23` concluida no baseline: happy path (`pnpm smoke`) e failure path (`pnpm smoke:rejected`) automatizados e validados
 - `24` parcialmente concluida: `README.md` e `docs/events.md` estao atualizados; `docs/architecture.md` e roteiro final de demonstracao seguem pendentes
 
 ### Issue 22: Testes unitários e de contrato

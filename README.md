@@ -98,17 +98,23 @@ pnpm dev
 pnpm lint
 pnpm format
 pnpm test
+pnpm test:unit
+pnpm test:contracts
 pnpm docker:up
 pnpm docker:up:infra
 pnpm docker:down
 pnpm docker:down:infra
 pnpm docker:logs
 pnpm smoke
+pnpm smoke:rejected
+pnpm test:e2e
 ```
 
 > `docker:up` sobe a stack dev completa (`infra/docker-compose.yml` + `infra/docker-compose.dev.yml`).
 > Use `docker:up:infra` se quiser subir somente a infraestrutura.
 > `smoke` executa um teste E2E automatizado (gateway -> MinIO -> pipeline -> projection/audit/notification/mailhog).
+> `smoke:rejected` executa o fluxo E2E de falha (arquivo rejeitado pelo validator, com audit + notification).
+> `test:e2e` encadeia os dois smokes.
 
 ### Infra local (Docker Compose)
 
