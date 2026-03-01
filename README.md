@@ -665,6 +665,7 @@ Documento de acompanhamento:
 
 - `docs/config-and-docker-plan.md`
 - `docs/events.md` (catalogo v1 de commands/events + exemplos JSON)
+- `docs/architecture.md` (runtime topology, flows, DDD boundaries, reliability, shadow process manager)
 
 Status funcional atual (smoke-test completo validado):
 
@@ -672,6 +673,7 @@ Status funcional atual (smoke-test completo validado):
 - timeline projetada ate `ProcessingCompleted.v1`
 - `notification-service` envia e-mail para Mailhog no evento `ProcessingCompleted.v1`
 - `projection-service` publica `ProcessingCompleted.v1` via outbox (MVP robustecido)
+- `projection-service` tambem executa um **shadow process manager** que persiste estado em `processing_manager.processing_sagas` e compara o resultado calculado com a conclusao atual (`comparison_status=match` no smoke validado)
 
 Status atual da fase:
 
@@ -681,15 +683,21 @@ Status atual da fase:
 - Dockerfiles multi-stage (`dev`/`build`/`prod`) criados para todos os backends
 - Compose full dev (`infra` + `backends`) criado em `infra/docker-compose.dev.yml`
 - Scripts raiz atualizados: `docker:up` (stack completa), `docker:up:infra`, `docker:down`, `docker:logs`
-- Próxima etapa principal: item `7` (robustez e qualidade); frontends entram no compose depois (itens `8/9`) e a introdução de Saga fica planejada para v0.2
+- `docs/architecture.md` agora consolida topologia, fluxos, boundaries DDD e estrategia de confiabilidade
+- Próxima etapa principal: fechar a suite da Saga (`happy path`, `failure`, `timeout`) e depois fazer o cutover controlado do terminal event para o process manager em v0.2
 
 ---
 
-## 13.2) Evolução planejada: Saga (v0.2)
+## 13.2) Evolução da Saga (v0.2 roadmap + shadow mode)
 
 O projeto **já é Event-Driven Design** e atualmente coordena a conclusão do pipeline de forma implícita no `projection-service`.
 
-Para a evolução v0.2 (sem alterar o MVP atual), a direção arquitetural definida é:
+O estado atual da adoção é:
+
+- o `projection-service` continua sendo o produtor oficial de `ProcessingCompleted.v1`
+- um **Process Manager em modo shadow** já observa os mesmos eventos, persiste estado próprio e compara seu resultado com a conclusão atual
+
+Para a evolução v0.2 (sem quebrar o MVP atual), a direção arquitetural definida continua sendo:
 
 - **Saga coreografada com Process Manager explícito**
 - `projection-service` voltando ao foco principal de **read model**
@@ -702,6 +710,6 @@ Documentação da decisão e roadmap:
 
 Observação:
 
-- A introdução da Saga é planejada como evolução incremental, mantendo compatibilidade com o fluxo event-driven atual e sem reescrever o pipeline do MVP.
+- A adoção da Saga segue incremental: primeiro shadow mode, depois validação de consistência, depois cutover do terminal event. O fluxo event-driven atual permanece intacto no MVP.
 
 ---

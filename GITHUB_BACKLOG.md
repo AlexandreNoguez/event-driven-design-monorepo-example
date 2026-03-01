@@ -194,6 +194,7 @@ Status atual:
 - `17` concluida para produtores de eventos (`upload-service`, `projection-service`, `validator-service`, `thumbnail-service`, `extractor-service`) com outbox + retry operacional/telemetria
 - `18` concluida no MVP: DLQ visivel + endpoints admin no `api-gateway`, retry dos consumers com `x-death` + parking manual em DLQ, re-drive em modo seguro (AMQP confirm + ack pos-confirm) e trilha operacional por `operationCorrelationId` (`DlqRedriveCompleted.v1`)
 - `18.1` concluida no planejamento: Saga v0.2 formalizada em `docs/saga.md` + `docs/adr/0001-saga-adoption.md`
+- `18.2` concluida no shadow baseline: Process Manager em `projection-service` persiste estado/idempotencia em `processing_manager.*` e compara o resultado calculado com o `ProcessingCompleted.v1` atual
 - `M4` observabilidade: logs JSON estruturados cobrem bootstraps, consumers/publishers AMQP, use cases, outbox pollers, repositorios/infra e operacao do gateway
 - `M4` avancando em resiliencia de borda: `api-gateway` com timeouts configuraveis (JWKS/Management API), limites de upload e envelope de erro HTTP padronizado
 
@@ -262,7 +263,7 @@ Status atual:
 Status atual:
 - `22` concluida no baseline: unit tests minimos com `node:test` + contract test do catalogo/examples v1
 - `23` concluida no baseline: happy path (`pnpm smoke`) e failure path (`pnpm smoke:rejected`) automatizados e validados
-- `24` parcialmente concluida: `README.md` e `docs/events.md` estao atualizados; `docs/architecture.md` e roteiro final de demonstracao seguem pendentes
+- `24` parcialmente concluida: `README.md`, `docs/events.md` e `docs/architecture.md` estao atualizados; roteiro final de demonstracao/manual walkthrough segue pendente
 
 ### Issue 22: Testes unitários e de contrato
 - Labels: `testing`

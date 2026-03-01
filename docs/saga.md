@@ -1,14 +1,18 @@
-# Saga (Planejada para v0.2)
+# Saga (v0.2 Roadmap, Shadow Mode Started)
 
 ## Objetivo
 
-Documentar a evolução planejada do pipeline para uma **Saga explícita** sem alterar o comportamento atual do MVP.
+Documentar a evolução incremental do pipeline para uma **Saga explícita**, preservando o comportamento atual do MVP durante a transição.
 
 Estado atual:
 
 - O projeto já é **Event-Driven Design (EDD)**.
 - A coordenação de conclusão do pipeline está **implícita** no `projection-service`.
 - `ProcessingCompleted.v1` já é publicado (via outbox no `projection-service`).
+- Um **Process Manager em modo shadow** já foi introduzido dentro do `projection-service`.
+- O shadow state já é persistido em `processing_manager.processing_sagas`.
+- A idempotência do shadow mode já é persistida em `processing_manager.processed_events`.
+- O resultado da saga calculada em shadow já é comparado com o `ProcessingCompleted.v1` atual.
 
 Estado alvo (v0.2):
 
@@ -130,9 +134,9 @@ Campos mínimos da saga:
 
 ## Estratégia de migração incremental (recomendada)
 
-1. **Design + ADR + checklist** (este passo)
-2. Implementar Process Manager em modo "shadow" (observa e projeta estado, sem publicar término)
-3. Validar consistência entre conclusão atual (`projection-service`) e conclusão calculada pela saga
+1. **Design + ADR + checklist** (concluído)
+2. Implementar Process Manager em modo "shadow" (concluído no baseline atual)
+3. Validar consistência entre conclusão atual (`projection-service`) e conclusão calculada pela saga (iniciado; smoke inicial validado)
 4. Mover publicação de `ProcessingCompleted.v1` para o Process Manager (com outbox)
 5. Adicionar `ProcessingFailed.v1` / `ProcessingTimedOut.v1`
 6. Atualizar `projection-service` para consumir eventos da saga, mantendo foco em read model

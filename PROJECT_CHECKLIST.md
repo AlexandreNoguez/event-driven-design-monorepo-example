@@ -193,6 +193,11 @@
   - [x] Definir eventos de término planejados (`ProcessingFailed.v1`, `ProcessingTimedOut.v1`)
   - [x] Planejar migração da regra de conclusão de `ProcessingCompleted.v1` do `projection-service` para a Saga
   - [ ] Definir testes da Saga (happy path, falha, timeout) para v0.2
+- [x] Implementar Process Manager da Saga em modo shadow (sem cutover)
+  - [x] Persistir estado em `processing_manager.processing_sagas`
+  - [x] Persistir idempotência em `processing_manager.processed_events`
+  - [x] Comparar resultado shadow com o `ProcessingCompleted.v1` atual
+  - [x] Validar consistência inicial com smoke (`comparison_status=match`)
 
 ---
 
@@ -233,7 +238,7 @@
   - [ ] como rodar serviços e front
   - [x] URLs locais (RabbitMQ, Keycloak, MinIO, Mailhog)
   - [ ] passo a passo de teste manual do fluxo
-- [ ] `docs/architecture.md` com diagramas (flow + sequence)
+- [x] `docs/architecture.md` com diagramas (flow + sequence)
 - [x] `docs/events.md` com catálogo de eventos e payloads
 
 ---
