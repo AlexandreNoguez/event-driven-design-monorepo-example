@@ -2,6 +2,7 @@ import type {
   ProcessingSagaComparisonStatus,
   ProcessingSagaState,
   ProcessingSagaStatus,
+  ProcessingSagaTerminalEventType,
 } from '../../../domain/process-manager/processing-saga';
 import type { ProjectableDomainEvent } from '../../../domain/projection/projectable-event';
 
@@ -16,6 +17,7 @@ export interface TrackProcessingSagaInput {
 export interface TrackProcessingSagaResult {
   applied: boolean;
   sagaState?: ProcessingSagaState;
+  queuedTerminalEventType?: ProcessingSagaTerminalEventType;
 }
 
 export interface TimedOutProcessingSaga {
@@ -24,6 +26,7 @@ export interface TimedOutProcessingSaga {
   correlationId: string;
   status: ProcessingSagaStatus;
   comparisonStatus: ProcessingSagaComparisonStatus;
+  queuedTerminalEventType?: ProcessingSagaTerminalEventType;
 }
 
 export interface ProcessingSagaRepositoryPort {

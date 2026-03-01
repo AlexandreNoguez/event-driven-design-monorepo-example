@@ -1,5 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { createJsonLogEntry } from '@event-pipeline/shared';
+import {
+  createEnvelope,
+  createJsonLogEntry,
+  EVENT_ROUTING_KEYS_V1,
+} from '@event-pipeline/shared';
 import { Pool, type PoolClient } from 'pg';
 import type {
   ProcessingSagaRepositoryPort,
@@ -9,7 +13,9 @@ import type {
 } from '../../application/process-manager/ports/processing-saga-repository.port';
 import {
   applyProcessingSagaEvent,
+  deriveTerminalEventSpec,
   markProcessingSagaTimedOut,
+  type ProcessingSagaTerminalEventType,
   type ProcessingSagaState,
 } from '../../domain/process-manager/processing-saga';
 import { ProjectionServiceConfigService } from '../config/projection-service-config.service';
@@ -43,8 +49,10 @@ interface ProcessingSagaRow {
 export class PostgresProcessingSagaRepository implements ProcessingSagaRepositoryPort, OnModuleDestroy {
   private readonly logger = new Logger(PostgresProcessingSagaRepository.name);
   private readonly pool: Pool;
+  private readonly publishTerminalEvents: boolean;
 
   constructor(config: ProjectionServiceConfigService) {
+    this.publishTerminalEvents = config.processManagerPublishesTerminalEvents;
     this.pool = new Pool({
       connectionString: config.databaseUrl,
       max: 10,
@@ -86,11 +94,18 @@ export class PostgresProcessingSagaRepository implements ProcessingSagaRepositor
       });
 
       await this.upsertSaga(client, next);
+      const queuedTerminalEventType = await this.maybeInsertTerminalOutboxEventForTrackedTransition(
+        client,
+        current,
+        next,
+        input,
+      );
 
       await client.query('COMMIT');
       return {
         applied: true,
         sagaState: next,
+        queuedTerminalEventType,
       };
     } catch (error) {
       await client.query('ROLLBACK');
@@ -123,12 +138,18 @@ export class PostgresProcessingSagaRepository implements ProcessingSagaRepositor
         const current = mapRowToState(row);
         const next = markProcessingSagaTimedOut(current, now);
         await this.upsertSaga(client, next);
+        const queuedTerminalEventType = await this.maybeInsertTerminalOutboxEvent(client, next, {
+          messageId: current.lastEventId,
+          occurredAt: now,
+          correlationId: next.correlationId,
+        });
         timedOut.push({
           sagaId: next.sagaId,
           fileId: next.fileId,
           correlationId: next.correlationId,
           status: next.status,
           comparisonStatus: next.comparisonStatus,
+          queuedTerminalEventType,
         });
       }
 
@@ -269,6 +290,120 @@ export class PostgresProcessingSagaRepository implements ProcessingSagaRepositor
       ],
     );
   }
+
+  private async maybeInsertTerminalOutboxEventForTrackedTransition(
+    client: PoolClient,
+    previous: ProcessingSagaState | undefined,
+    next: ProcessingSagaState,
+    input: TrackProcessingSagaInput,
+  ): Promise<ProcessingSagaTerminalEventType | undefined> {
+    if (
+      input.event.type === 'ProcessingCompleted.v1' ||
+      input.event.type === 'ProcessingFailed.v1' ||
+      input.event.type === 'ProcessingTimedOut.v1'
+    ) {
+      return undefined;
+    }
+
+    if (previous?.status === next.status) {
+      return undefined;
+    }
+
+    return this.maybeInsertTerminalOutboxEvent(client, next, {
+      messageId: input.event.messageId,
+      occurredAt: input.event.occurredAt,
+      correlationId: input.event.correlationId,
+    });
+  }
+
+  private async maybeInsertTerminalOutboxEvent(
+    client: PoolClient,
+    state: ProcessingSagaState,
+    causation: {
+      messageId: string;
+      occurredAt: string;
+      correlationId: string;
+    },
+  ): Promise<ProcessingSagaTerminalEventType | undefined> {
+    if (!this.publishTerminalEvents) {
+      return undefined;
+    }
+
+    const spec = deriveTerminalEventSpec(state);
+    if (!spec) {
+      return undefined;
+    }
+
+    const actorContext = getActorContext(state);
+    const outboxEvent = createEnvelope({
+      messageId: `${state.sagaId}:${spec.type}`,
+      kind: 'event',
+      type: spec.type,
+      producer: 'projection-service',
+      correlationId: causation.correlationId,
+      causationId: causation.messageId,
+      occurredAt: causation.occurredAt,
+      payload: {
+        fileId: state.fileId,
+        status: spec.status,
+        completedSteps: spec.completedSteps,
+        ...(actorContext.userId ? { userId: actorContext.userId } : {}),
+        ...(actorContext.tenantId ? { tenantId: actorContext.tenantId } : {}),
+        ...(spec.type === 'ProcessingFailed.v1'
+          ? {
+              failedStage: spec.failedStage ?? 'processing',
+              ...(spec.failureCode ? { failureCode: spec.failureCode } : {}),
+              ...(spec.failureReason ? { failureReason: spec.failureReason } : {}),
+            }
+          : {}),
+        ...(spec.type === 'ProcessingTimedOut.v1'
+          ? {
+              pendingSteps: spec.pendingSteps ?? [],
+              timeoutAt: spec.timeoutAt ?? state.updatedAt,
+              deadlineAt: spec.deadlineAt ?? state.deadlineAt,
+            }
+          : {}),
+      },
+    });
+
+    const headers = {
+      kind: outboxEvent.kind,
+      type: outboxEvent.type,
+      version: outboxEvent.version,
+      correlationId: outboxEvent.correlationId,
+      causationId: outboxEvent.causationId ?? null,
+      producer: outboxEvent.producer,
+    };
+
+    await client.query(
+      `
+        insert into projection_service.outbox_events (
+          event_id,
+          aggregate_type,
+          aggregate_id,
+          event_type,
+          routing_key,
+          payload,
+          headers,
+          occurred_at
+        )
+        values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::timestamptz)
+        on conflict (event_id) do nothing
+      `,
+      [
+        outboxEvent.messageId,
+        'processing-saga',
+        state.sagaId,
+        outboxEvent.type,
+        EVENT_ROUTING_KEYS_V1[spec.type],
+        JSON.stringify(outboxEvent),
+        JSON.stringify(headers),
+        outboxEvent.occurredAt,
+      ],
+    );
+
+    return spec.type;
+  }
 }
 
 function mapRowToState(row: ProcessingSagaRow): ProcessingSagaState {
@@ -296,4 +431,13 @@ function mapRowToState(row: ProcessingSagaRow): ProcessingSagaState {
     lastEventOccurredAt: row.last_event_occurred_at.toISOString(),
     metadata: row.metadata ?? {},
   };
+}
+
+function getActorContext(state: ProcessingSagaState): {
+  userId?: string;
+  tenantId?: string;
+} {
+  const userId = typeof state.metadata.userId === 'string' ? state.metadata.userId : undefined;
+  const tenantId = typeof state.metadata.tenantId === 'string' ? state.metadata.tenantId : undefined;
+  return { userId, tenantId };
 }

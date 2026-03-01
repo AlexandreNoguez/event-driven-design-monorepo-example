@@ -34,6 +34,7 @@ export class MarkProcessingSagasTimedOutUseCase {
           sagaId: saga.sagaId,
           sagaStatus: saga.status,
           comparisonStatus: saga.comparisonStatus,
+          queuedTerminalEventType: saga.queuedTerminalEventType,
         },
       })));
     }

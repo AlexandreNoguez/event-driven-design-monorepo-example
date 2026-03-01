@@ -6,7 +6,9 @@ export type ProjectableEventType =
   | 'FileRejected.v1'
   | 'ThumbnailGenerated.v1'
   | 'MetadataExtracted.v1'
-  | 'ProcessingCompleted.v1';
+  | 'ProcessingCompleted.v1'
+  | 'ProcessingFailed.v1'
+  | 'ProcessingTimedOut.v1';
 
 export type ProjectableDomainEvent = {
   [K in ProjectableEventType]: DomainEventV1<K>;
@@ -52,7 +54,9 @@ export function isProjectableType(type: string): type is ProjectableEventType {
     type === 'FileRejected.v1' ||
     type === 'ThumbnailGenerated.v1' ||
     type === 'MetadataExtracted.v1' ||
-    type === 'ProcessingCompleted.v1'
+    type === 'ProcessingCompleted.v1' ||
+    type === 'ProcessingFailed.v1' ||
+    type === 'ProcessingTimedOut.v1'
   );
 }
 
@@ -118,6 +122,28 @@ export function buildTimelineSummary(event: ProjectableDomainEvent): ProjectionT
         payloadSummary: {
           status: event.payload.status,
           completedSteps: event.payload.completedSteps,
+        },
+      };
+    case 'ProcessingFailed.v1':
+      return {
+        fileId: event.payload.fileId,
+        payloadSummary: {
+          status: event.payload.status,
+          completedSteps: event.payload.completedSteps,
+          failedStage: event.payload.failedStage,
+          failureCode: event.payload.failureCode,
+          failureReason: event.payload.failureReason,
+        },
+      };
+    case 'ProcessingTimedOut.v1':
+      return {
+        fileId: event.payload.fileId,
+        payloadSummary: {
+          status: event.payload.status,
+          completedSteps: event.payload.completedSteps,
+          pendingSteps: event.payload.pendingSteps,
+          timeoutAt: event.payload.timeoutAt,
+          deadlineAt: event.payload.deadlineAt,
         },
       };
   }

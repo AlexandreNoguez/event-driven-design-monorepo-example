@@ -12,6 +12,7 @@ const DEFAULTS = {
   outboxBatchSize: 50,
   outboxMaxPublishAttempts: 5,
   processManagerShadowEnabled: true,
+  processManagerPublishesTerminalEvents: true,
   processManagerShadowConsumerName: 'process-manager:shadow',
   processManagerTimeoutMs: 300000,
   processManagerTimeoutSweepIntervalMs: 10000,
@@ -81,6 +82,13 @@ export class ProjectionServiceConfigService {
     );
   }
 
+  get processManagerPublishesTerminalEvents(): boolean {
+    return this.config.get<boolean>(
+      'PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS',
+      DEFAULTS.processManagerPublishesTerminalEvents,
+    );
+  }
+
   get processManagerShadowConsumerName(): string {
     return this.config.get<string>(
       'PROJECTION_PROCESS_MANAGER_SHADOW_CONSUMER_NAME',
@@ -139,6 +147,11 @@ export function validateProjectionServiceEnvironment(
     raw.PROJECTION_PROCESS_MANAGER_SHADOW_ENABLED,
     DEFAULTS.processManagerShadowEnabled,
     'PROJECTION_PROCESS_MANAGER_SHADOW_ENABLED',
+  );
+  env.PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS = toBoolean(
+    raw.PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS,
+    DEFAULTS.processManagerPublishesTerminalEvents,
+    'PROJECTION_PROCESS_MANAGER_PUBLISH_TERMINAL_EVENTS',
   );
   env.PROJECTION_PROCESS_MANAGER_SHADOW_CONSUMER_NAME =
     optionalString(raw.PROJECTION_PROCESS_MANAGER_SHADOW_CONSUMER_NAME) ??

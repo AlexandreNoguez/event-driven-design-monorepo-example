@@ -1,5 +1,12 @@
 import type { ProjectableDomainEvent } from '../projection/projectable-event';
 
+const PIPELINE_STEPS = ['upload', 'validation', 'thumbnail', 'metadata'] as const;
+
+export type ProcessingSagaTerminalEventType =
+  | 'ProcessingCompleted.v1'
+  | 'ProcessingFailed.v1'
+  | 'ProcessingTimedOut.v1';
+
 export type ProcessingSagaStatus =
   | 'started'
   | 'awaiting-validation'
@@ -36,6 +43,18 @@ export interface ProcessingSagaState {
   metadata: Record<string, unknown>;
 }
 
+export interface ProcessingSagaTerminalEventSpec {
+  type: ProcessingSagaTerminalEventType;
+  status: 'completed' | 'failed';
+  completedSteps: string[];
+  failedStage?: string;
+  failureCode?: string;
+  failureReason?: string;
+  pendingSteps?: string[];
+  timeoutAt?: string;
+  deadlineAt?: string;
+}
+
 export interface ApplyProcessingSagaEventInput {
   current?: ProcessingSagaState;
   event: ProjectableDomainEvent;
@@ -63,7 +82,9 @@ export function applyProcessingSagaEvent(
     },
   };
 
-  if (isTerminalStatus(base.status) && event.type !== 'ProcessingCompleted.v1') {
+  mergeActorContext(next, event);
+
+  if (isTerminalStatus(base.status) && !isObservedTerminalEventType(event.type)) {
     next.comparisonStatus = deriveComparisonStatus(next);
     return next;
   }
@@ -118,7 +139,34 @@ export function applyProcessingSagaEvent(
       next.projectionCompletionObservedAt = event.occurredAt;
       next.metadata = {
         ...next.metadata,
+        observedTerminalEventType: event.type,
         projectionCompletedSteps: event.payload.completedSteps,
+      };
+      break;
+    }
+    case 'ProcessingFailed.v1': {
+      next.projectionCompletionStatus = 'failed';
+      next.projectionCompletionObservedAt = event.occurredAt;
+      next.metadata = {
+        ...next.metadata,
+        observedTerminalEventType: event.type,
+        projectionCompletedSteps: event.payload.completedSteps,
+        projectionFailureStage: event.payload.failedStage,
+        projectionFailureCode: event.payload.failureCode,
+        projectionFailureReason: event.payload.failureReason,
+      };
+      break;
+    }
+    case 'ProcessingTimedOut.v1': {
+      next.projectionCompletionStatus = 'failed';
+      next.projectionCompletionObservedAt = event.occurredAt;
+      next.metadata = {
+        ...next.metadata,
+        observedTerminalEventType: event.type,
+        projectionCompletedSteps: event.payload.completedSteps,
+        projectionPendingSteps: event.payload.pendingSteps,
+        projectionTimeoutAt: event.payload.timeoutAt,
+        projectionDeadlineAt: event.payload.deadlineAt,
       };
       break;
     }
@@ -151,6 +199,68 @@ export function markProcessingSagaTimedOut(
 
 export function isTerminalStatus(status: ProcessingSagaStatus): boolean {
   return status === 'completed' || status === 'failed' || status === 'timed-out';
+}
+
+export function deriveTerminalEventSpec(
+  state: ProcessingSagaState,
+): ProcessingSagaTerminalEventSpec | undefined {
+  if (!isTerminalStatus(state.status)) {
+    return undefined;
+  }
+
+  const completedSteps = getCompletedSteps(state);
+
+  switch (state.status) {
+    case 'completed':
+      return {
+        type: 'ProcessingCompleted.v1',
+        status: 'completed',
+        completedSteps,
+      };
+    case 'failed':
+      return {
+        type: 'ProcessingFailed.v1',
+        status: 'failed',
+        completedSteps,
+        failedStage: state.validationCompletedAt ? 'processing' : 'validation',
+        failureCode: state.rejectionCode,
+        failureReason: state.rejectionReason,
+      };
+    case 'timed-out':
+      return {
+        type: 'ProcessingTimedOut.v1',
+        status: 'failed',
+        completedSteps,
+        pendingSteps: getPendingSteps(state),
+        timeoutAt: state.timedOutAt ?? state.updatedAt,
+        deadlineAt: state.deadlineAt,
+      };
+  }
+
+  return undefined;
+}
+
+export function getCompletedSteps(state: ProcessingSagaState): string[] {
+  const completedSteps = ['upload'];
+
+  if (state.validationCompletedAt) {
+    completedSteps.push('validation');
+  }
+
+  if (state.thumbnailCompletedAt) {
+    completedSteps.push('thumbnail');
+  }
+
+  if (state.metadataCompletedAt) {
+    completedSteps.push('metadata');
+  }
+
+  return completedSteps;
+}
+
+export function getPendingSteps(state: ProcessingSagaState): string[] {
+  const completed = new Set(getCompletedSteps(state));
+  return PIPELINE_STEPS.filter((step) => !completed.has(step));
 }
 
 function createInitialState(
@@ -199,10 +309,58 @@ function deriveComparisonStatus(state: ProcessingSagaState): ProcessingSagaCompa
     return 'pending';
   }
 
-  const expectedProjectionStatus = state.status === 'completed' ? 'completed' : 'failed';
-  return expectedProjectionStatus === state.projectionCompletionStatus ? 'match' : 'mismatch';
+  const observedTerminalEventType = getObservedTerminalEventType(state);
+
+  if (state.status === 'completed') {
+    return state.projectionCompletionStatus === 'completed' &&
+      observedTerminalEventType === 'ProcessingCompleted.v1'
+      ? 'match'
+      : 'mismatch';
+  }
+
+  if (state.status === 'failed') {
+    return state.projectionCompletionStatus === 'failed' &&
+      (
+        observedTerminalEventType === 'ProcessingFailed.v1' ||
+        observedTerminalEventType === 'ProcessingCompleted.v1'
+      )
+      ? 'match'
+      : 'mismatch';
+  }
+
+  return state.projectionCompletionStatus === 'failed' &&
+    observedTerminalEventType === 'ProcessingTimedOut.v1'
+    ? 'match'
+    : 'mismatch';
 }
 
 export function buildSagaId(fileId: string, correlationId: string): string {
   return `${correlationId}:${fileId}`;
+}
+
+function mergeActorContext(state: ProcessingSagaState, event: ProjectableDomainEvent): void {
+  if ('userId' in event.payload && typeof event.payload.userId === 'string') {
+    state.metadata.userId = event.payload.userId;
+  }
+
+  if ('tenantId' in event.payload && typeof event.payload.tenantId === 'string') {
+    state.metadata.tenantId = event.payload.tenantId;
+  }
+}
+
+function isObservedTerminalEventType(type: string): type is ProcessingSagaTerminalEventType {
+  return (
+    type === 'ProcessingCompleted.v1' ||
+    type === 'ProcessingFailed.v1' ||
+    type === 'ProcessingTimedOut.v1'
+  );
+}
+
+function getObservedTerminalEventType(
+  state: ProcessingSagaState,
+): ProcessingSagaTerminalEventType | undefined {
+  const observed = state.metadata.observedTerminalEventType;
+  return typeof observed === 'string' && isObservedTerminalEventType(observed)
+    ? observed
+    : undefined;
 }

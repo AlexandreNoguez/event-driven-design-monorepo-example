@@ -58,14 +58,15 @@ export class TrackProcessingSagaUseCase {
       messageType: input.event.type,
       routingKey: input.routingKey,
       fileId: input.event.payload.fileId,
-      metadata: {
-        consumerName: this.config.processManagerShadowConsumerName,
-        sagaId: result.sagaState.sagaId,
-        sagaStatus: result.sagaState.status,
-        comparisonStatus: result.sagaState.comparisonStatus,
-        projectionCompletionStatus: result.sagaState.projectionCompletionStatus,
-      },
-    });
+        metadata: {
+          consumerName: this.config.processManagerShadowConsumerName,
+          sagaId: result.sagaState.sagaId,
+          sagaStatus: result.sagaState.status,
+          comparisonStatus: result.sagaState.comparisonStatus,
+          projectionCompletionStatus: result.sagaState.projectionCompletionStatus,
+          queuedTerminalEventType: result.queuedTerminalEventType,
+        },
+      });
 
     if (level === 'warn') {
       this.logger.warn(JSON.stringify(payload));

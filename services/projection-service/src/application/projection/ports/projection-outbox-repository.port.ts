@@ -6,7 +6,7 @@ export interface ProjectionOutboxPendingEvent {
   eventId: string;
   routingKey: string;
   attemptCount: number;
-  envelope: DomainEventV1<'ProcessingCompleted.v1'>;
+  envelope: DomainEventV1;
 }
 
 export interface ProjectionOutboxRepositoryPort {

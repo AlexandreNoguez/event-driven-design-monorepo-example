@@ -44,8 +44,10 @@ export class PostgresProjectionProjectorAdapter
 {
   private readonly logger = new Logger(PostgresProjectionProjectorAdapter.name);
   private readonly pool: Pool;
+  private readonly processManagerPublishesTerminalEvents: boolean;
 
   constructor(config: ProjectionServiceConfigService) {
+    this.processManagerPublishesTerminalEvents = config.processManagerPublishesTerminalEvents;
     this.pool = new Pool({
       connectionString: config.databaseUrl,
       max: 10,
@@ -258,6 +260,12 @@ export class PostgresProjectionProjectorAdapter
         return;
       case 'ProcessingCompleted.v1':
         await this.applyProcessingCompleted(client, event);
+        return;
+      case 'ProcessingFailed.v1':
+        await this.applyProcessingFailed(client, event);
+        return;
+      case 'ProcessingTimedOut.v1':
+        await this.applyProcessingTimedOut(client, event);
         return;
     }
   }
@@ -512,6 +520,81 @@ export class PostgresProjectionProjectorAdapter
     });
   }
 
+  private async applyProcessingFailed(
+    client: PoolClient,
+    event: Extract<ProjectableDomainEvent, { type: 'ProcessingFailed.v1' }>,
+  ): Promise<void> {
+    await client.query(
+      `
+        update projection_service.uploads_read
+        set tenant_id = coalesce($2, tenant_id),
+            user_id = coalesce($3, user_id),
+            overall_status = case
+              when overall_status = 'rejected' then 'rejected'
+              else 'failed'
+            end,
+            updated_at = now()
+        where file_id = $1
+      `,
+      [
+        event.payload.fileId,
+        event.payload.tenantId ?? null,
+        event.payload.userId ?? null,
+      ],
+    );
+
+    await this.upsertStep(client, {
+      fileId: event.payload.fileId,
+      stepName: 'processing',
+      stepStatus: 'failed',
+      finishedAt: event.occurredAt,
+      errorCode: event.payload.failureCode,
+      errorMessage: event.payload.failureReason,
+      details: {
+        completedSteps: event.payload.completedSteps,
+        failedStage: event.payload.failedStage,
+        failureCode: event.payload.failureCode,
+        failureReason: event.payload.failureReason,
+      },
+    });
+  }
+
+  private async applyProcessingTimedOut(
+    client: PoolClient,
+    event: Extract<ProjectableDomainEvent, { type: 'ProcessingTimedOut.v1' }>,
+  ): Promise<void> {
+    await client.query(
+      `
+        update projection_service.uploads_read
+        set tenant_id = coalesce($2, tenant_id),
+            user_id = coalesce($3, user_id),
+            overall_status = 'failed',
+            updated_at = now()
+        where file_id = $1
+      `,
+      [
+        event.payload.fileId,
+        event.payload.tenantId ?? null,
+        event.payload.userId ?? null,
+      ],
+    );
+
+    await this.upsertStep(client, {
+      fileId: event.payload.fileId,
+      stepName: 'processing',
+      stepStatus: 'timed-out',
+      finishedAt: event.occurredAt,
+      errorCode: 'PROCESSING_TIMEOUT',
+      errorMessage: 'The processing saga exceeded the configured deadline.',
+      details: {
+        completedSteps: event.payload.completedSteps,
+        pendingSteps: event.payload.pendingSteps,
+        timeoutAt: event.payload.timeoutAt,
+        deadlineAt: event.payload.deadlineAt,
+      },
+    });
+  }
+
   private async upsertTimeline(
     client: PoolClient,
     event: ProjectableDomainEvent,
@@ -647,7 +730,16 @@ export class PostgresProjectionProjectorAdapter
     client: PoolClient,
     event: ProjectableDomainEvent,
   ): Promise<void> {
-    if (event.type === 'ProcessingCompleted.v1' || event.type === 'FileRejected.v1') {
+    if (this.processManagerPublishesTerminalEvents) {
+      return;
+    }
+
+    if (
+      event.type === 'ProcessingCompleted.v1' ||
+      event.type === 'ProcessingFailed.v1' ||
+      event.type === 'ProcessingTimedOut.v1' ||
+      event.type === 'FileRejected.v1'
+    ) {
       return;
     }
 
