@@ -41,9 +41,9 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       API_GATEWAY_PORT: "3000"
       API_GATEWAY_AUTH_DEV_BYPASS: ${API_GATEWAY_AUTH_DEV_BYPASS:-false}
-      JWT_ISSUER_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-event-pipeline}
+      JWT_ISSUER_URL: ${KEYCLOAK_URL:-http://localhost:8080}/realms/${KEYCLOAK_REALM:-event-pipeline}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-account}
-      JWT_JWKS_URL: ${JWT_JWKS_URL:-}
+      JWT_JWKS_URL: ${JWT_JWKS_URL:-http://keycloak:8080/realms/${KEYCLOAK_REALM:-event-pipeline}/protocol/openid-connect/certs}
       JWT_JWKS_CACHE_TTL_MS: ${JWT_JWKS_CACHE_TTL_MS:-300000}
       JWT_JWKS_FETCH_TIMEOUT_MS: ${JWT_JWKS_FETCH_TIMEOUT_MS:-5000}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-event}:${RABBITMQ_PASSWORD:-event}@rabbitmq:5672
