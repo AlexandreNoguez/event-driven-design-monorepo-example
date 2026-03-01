@@ -187,11 +187,11 @@
 - [x] Logs estruturados com `correlationId` em todos serviços
   - Cobertura em todos os servicos: bootstraps, consumers/publishers AMQP, use cases principais, outbox pollers, repositórios/infra e componentes operacionais do `api-gateway` (DLQ admin, command publisher, filtro HTTP)
 - [ ] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
-  - [ ] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
-  - [ ] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)
-  - [ ] Definir timeouts de processo e política de expiração
-  - [ ] Definir eventos de término planejados (`ProcessingFailed.v1`, `ProcessingTimedOut.v1`)
-  - [ ] Planejar migração da regra de conclusão de `ProcessingCompleted.v1` do `projection-service` para a Saga
+  - [x] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
+  - [x] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)
+  - [x] Definir timeouts de processo e política de expiração
+  - [x] Definir eventos de término planejados (`ProcessingFailed.v1`, `ProcessingTimedOut.v1`)
+  - [x] Planejar migração da regra de conclusão de `ProcessingCompleted.v1` do `projection-service` para a Saga
   - [ ] Definir testes da Saga (happy path, falha, timeout) para v0.2
 
 ---
@@ -220,19 +220,20 @@
 - [ ] Unit tests (mínimo) para handlers de eventos/commands
 - [ ] Contract tests para mensagens (schema/validation)
 - [ ] Teste de fluxo E2E local:
-  - [ ] upload → validated → thumbnail+metadata → completed
+  - [x] upload → validated → thumbnail+metadata → completed
+    - validado manualmente e automatizado via `pnpm smoke`
   - [ ] cenário de erro → rejected → email → audit
 
 ---
 
 ## 11) Documentação
 - [ ] `README.md` com:
-  - [ ] como subir infra
+  - [x] como subir infra
   - [ ] como rodar serviços e front
-  - [ ] URLs locais (RabbitMQ, Keycloak, MinIO, Mailhog)
+  - [x] URLs locais (RabbitMQ, Keycloak, MinIO, Mailhog)
   - [ ] passo a passo de teste manual do fluxo
 - [ ] `docs/architecture.md` com diagramas (flow + sequence)
-- [ ] `docs/events.md` com catálogo de eventos e payloads
+- [x] `docs/events.md` com catálogo de eventos e payloads
 
 ---
 
@@ -240,10 +241,10 @@
 
 - [ ] Usuário faz upload e vê status por etapa até concluir
 - [ ] Admin vê visão global e consegue reprocessar
-- [ ] Eventos trafegam via RabbitMQ com DLQ configurado
-- [ ] Outbox e idempotência implementados
+- [x] Eventos trafegam via RabbitMQ com DLQ configurado
+- [x] Outbox e idempotência implementados
 - [ ] Notificação (Mailhog) enviada em sucesso/falha
-- [ ] Audit log registrando todo o fluxo
+- [x] Audit log registrando todo o fluxo
 
 ## 13) Arquitetura Frontend (regra obrigatória)
 - [ ] Definir estado global com Zustand para cada app (`user-web` e `admin-web`)

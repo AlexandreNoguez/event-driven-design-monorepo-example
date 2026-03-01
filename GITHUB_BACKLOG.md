@@ -193,6 +193,7 @@ Status atual:
 Status atual:
 - `17` concluida para produtores de eventos (`upload-service`, `projection-service`, `validator-service`, `thumbnail-service`, `extractor-service`) com outbox + retry operacional/telemetria
 - `18` concluida no MVP: DLQ visivel + endpoints admin no `api-gateway`, retry dos consumers com `x-death` + parking manual em DLQ, re-drive em modo seguro (AMQP confirm + ack pos-confirm) e trilha operacional por `operationCorrelationId` (`DlqRedriveCompleted.v1`)
+- `18.1` concluida no planejamento: Saga v0.2 formalizada em `docs/saga.md` + `docs/adr/0001-saga-adoption.md`
 - `M4` observabilidade: logs JSON estruturados cobrem bootstraps, consumers/publishers AMQP, use cases, outbox pollers, repositorios/infra e operacao do gateway
 - `M4` avancando em resiliencia de borda: `api-gateway` com timeouts configuraveis (JWKS/Management API), limites de upload e envelope de erro HTTP padronizado
 
@@ -257,6 +258,10 @@ Status atual:
   - Consulta de auditoria disponível para depuração
 
 ## Milestone M5 — Testes e documentação de portfólio
+
+Status atual:
+- `23` parcialmente concluida: happy path automatizado via `pnpm smoke` (`POST /uploads` -> presigned PUT -> confirm -> projection/audit/notification/mailhog)
+- `24` parcialmente concluida: `README.md` e `docs/events.md` estao atualizados; `docs/architecture.md` e roteiro final de demonstracao seguem pendentes
 
 ### Issue 22: Testes unitários e de contrato
 - Labels: `testing`
