@@ -264,7 +264,7 @@ Status atual:
 Status atual:
 - `22` concluida no baseline: unit tests minimos com `node:test` + contract test do catalogo/examples v1
 - `22` expandida: Saga coberta explicitamente com cenarios `happy path`, `failed` e `timed-out`
-- `23` concluida no baseline: happy path (`pnpm smoke`) e failure path (`pnpm smoke:rejected`) automatizados e validados
+- `23` expandida: happy path (`pnpm smoke`), failure path (`pnpm smoke:rejected`) e timeout path (`pnpm smoke:timeout`) automatizados e validados
 - `24` parcialmente concluida: `README.md`, `docs/events.md` e `docs/architecture.md` estao atualizados; roteiro final de demonstracao/manual walkthrough segue pendente
 
 ### Issue 22: Testes unitários e de contrato

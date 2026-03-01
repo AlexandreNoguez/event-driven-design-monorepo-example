@@ -235,6 +235,8 @@
     - validado manualmente e automatizado via `pnpm smoke`
   - [x] cenário de erro → rejected → email → audit
     - validado via `pnpm smoke:rejected`
+  - [x] cenário de timeout → timed-out → email → audit
+    - validado via `pnpm smoke:timeout`
 
 ---
 

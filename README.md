@@ -107,6 +107,7 @@ pnpm docker:down:infra
 pnpm docker:logs
 pnpm smoke
 pnpm smoke:rejected
+pnpm smoke:timeout
 pnpm test:e2e
 ```
 
@@ -114,7 +115,8 @@ pnpm test:e2e
 > Use `docker:up:infra` se quiser subir somente a infraestrutura.
 > `smoke` executa um teste E2E automatizado (gateway -> MinIO -> pipeline -> projection/audit/notification/mailhog).
 > `smoke:rejected` executa o fluxo E2E de falha (arquivo rejeitado pelo validator, com audit + notification).
-> `test:e2e` encadeia os dois smokes.
+> `smoke:timeout` executa o fluxo E2E de timeout (workers de branch pausados, deadline forçado, `ProcessingTimedOut.v1`, audit + notification).
+> `test:e2e` encadeia os três smokes.
 
 ### Infra local (Docker Compose)
 
@@ -685,7 +687,7 @@ Status atual da fase:
 - Scripts raiz atualizados: `docker:up` (stack completa), `docker:up:infra`, `docker:down`, `docker:logs`
 - `docs/architecture.md` agora consolida topologia, fluxos, boundaries DDD e estrategia de confiabilidade
 - Cutover da Saga já iniciado: o Process Manager é o dono de `ProcessingCompleted.v1`, `ProcessingFailed.v1` e `ProcessingTimedOut.v1`, com rollback por flag de config
-- Próxima etapa principal: ampliar evidência E2E do cenário de timeout e então seguir para os frontends
+- Próxima etapa principal: seguir para os frontends e a superfície de consulta operacional do process manager, se desejarmos expor isso na UI
 
 ---
 

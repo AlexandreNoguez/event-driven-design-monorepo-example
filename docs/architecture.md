@@ -283,10 +283,10 @@ Current baseline:
 - contract test validating every JSON example in `docs/events/examples`
 - Docker E2E happy path: `pnpm smoke`
 - Docker E2E rejected path: `pnpm smoke:rejected`
+- Docker E2E timeout path: `pnpm smoke:timeout`
 - combined Docker E2E suite: `pnpm test:e2e`
 
 ## Known Next Steps
 
 - implement a dedicated read/query surface for the process manager if operational visibility becomes necessary
-- add a dedicated E2E timeout scenario if we want runtime evidence beyond the current unit coverage
 - build `user-web` and `admin-web` on top of the existing read model
