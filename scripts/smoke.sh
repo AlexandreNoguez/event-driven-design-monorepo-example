@@ -151,11 +151,19 @@ if [[ "$projection_status" != "completed" ]]; then
 fi
 
 audit_count=""
+processing_completed_count=""
+saga_match_count=""
 for _attempt in $(seq 1 30); do
   audit_count="$(compose_exec postgres psql -U "$POSTGRES_USER_VALUE" -d "$POSTGRES_DB_VALUE" -t -A -c \
     "select count(*) from audit_service.audit_events where correlation_id = '$correlation_id';")"
   audit_count="$(trim "$audit_count")"
-  if [[ -n "$audit_count" && "$audit_count" -ge 5 ]]; then
+  processing_completed_count="$(compose_exec postgres psql -U "$POSTGRES_USER_VALUE" -d "$POSTGRES_DB_VALUE" -t -A -c \
+    "select count(*) from audit_service.audit_events where correlation_id = '$correlation_id' and event_type = 'ProcessingCompleted.v1';")"
+  processing_completed_count="$(trim "$processing_completed_count")"
+  saga_match_count="$(compose_exec postgres psql -U "$POSTGRES_USER_VALUE" -d "$POSTGRES_DB_VALUE" -t -A -c \
+    "select count(*) from processing_manager.processing_sagas where file_id = '$file_id' and correlation_id = '$correlation_id' and status = 'completed' and comparison_status = 'match';")"
+  saga_match_count="$(trim "$saga_match_count")"
+  if [[ -n "$audit_count" && "$audit_count" -ge 5 && -n "$processing_completed_count" && "$processing_completed_count" -ge 1 && -n "$saga_match_count" && "$saga_match_count" -ge 1 ]]; then
     break
   fi
   sleep 1
@@ -163,6 +171,16 @@ done
 
 if [[ -z "$audit_count" || "$audit_count" -lt 5 ]]; then
   echo "[smoke] expected >=5 audit events for correlation '$correlation_id', got '$audit_count'"
+  exit 1
+fi
+
+if [[ -z "$processing_completed_count" || "$processing_completed_count" -lt 1 ]]; then
+  echo "[smoke] expected ProcessingCompleted.v1 in audit trail for correlation '$correlation_id', got '$processing_completed_count'"
+  exit 1
+fi
+
+if [[ -z "$saga_match_count" || "$saga_match_count" -lt 1 ]]; then
+  echo "[smoke] expected a completed/match processing saga row for file '$file_id', got '$saga_match_count'"
   exit 1
 fi
 
@@ -219,5 +237,5 @@ if [[ -z "$mailhog_match_count" || "$mailhog_match_count" -lt 1 ]]; then
   exit 1
 fi
 
-echo "[smoke] projection=completed audit_events=$audit_count notification_sent=$notification_sent_count mailhog_matches=$mailhog_match_count"
+echo "[smoke] projection=completed audit_events=$audit_count processing_completed_events=$processing_completed_count saga_matches=$saga_match_count notification_sent=$notification_sent_count mailhog_matches=$mailhog_match_count"
 echo "[smoke] SUCCESS"

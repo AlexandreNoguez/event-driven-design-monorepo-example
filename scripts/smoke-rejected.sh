@@ -148,18 +148,27 @@ if [[ "$projection_status" != "rejected" ]]; then
 fi
 
 audit_count=""
+processing_failed_count=""
 for _attempt in $(seq 1 30); do
   audit_count="$(compose_exec postgres psql -U "$POSTGRES_USER_VALUE" -d "$POSTGRES_DB_VALUE" -t -A -c \
     "select count(*) from audit_service.audit_events where correlation_id = '$correlation_id';")"
   audit_count="$(trim "$audit_count")"
-  if [[ -n "$audit_count" && "$audit_count" -ge 2 ]]; then
+  processing_failed_count="$(compose_exec postgres psql -U "$POSTGRES_USER_VALUE" -d "$POSTGRES_DB_VALUE" -t -A -c \
+    "select count(*) from audit_service.audit_events where correlation_id = '$correlation_id' and event_type = 'ProcessingFailed.v1';")"
+  processing_failed_count="$(trim "$processing_failed_count")"
+  if [[ -n "$audit_count" && "$audit_count" -ge 3 && -n "$processing_failed_count" && "$processing_failed_count" -ge 1 ]]; then
     break
   fi
   sleep 1
 done
 
-if [[ -z "$audit_count" || "$audit_count" -lt 2 ]]; then
-  echo "[smoke:rejected] expected >=2 audit events for correlation '$correlation_id', got '$audit_count'"
+if [[ -z "$audit_count" || "$audit_count" -lt 3 ]]; then
+  echo "[smoke:rejected] expected >=3 audit events for correlation '$correlation_id', got '$audit_count'"
+  exit 1
+fi
+
+if [[ -z "$processing_failed_count" || "$processing_failed_count" -lt 1 ]]; then
+  echo "[smoke:rejected] expected ProcessingFailed.v1 in audit trail for correlation '$correlation_id', got '$processing_failed_count'"
   exit 1
 fi
 
@@ -174,8 +183,8 @@ for _attempt in $(seq 1 30); do
   sleep 1
 done
 
-if [[ -z "$notification_sent_count" || "$notification_sent_count" -lt 1 ]]; then
-  echo "[smoke:rejected] expected sent notification for file '$file_id', got '$notification_sent_count'"
+if [[ "$notification_sent_count" != "1" ]]; then
+  echo "[smoke:rejected] expected exactly 1 sent notification for file '$file_id', got '$notification_sent_count'"
   exit 1
 fi
 
@@ -216,5 +225,5 @@ if [[ -z "$mailhog_match_count" || "$mailhog_match_count" -lt 1 ]]; then
   exit 1
 fi
 
-echo "[smoke:rejected] projection=rejected audit_events=$audit_count notification_sent=$notification_sent_count mailhog_matches=$mailhog_match_count"
+echo "[smoke:rejected] projection=rejected audit_events=$audit_count processing_failed_events=$processing_failed_count notification_sent=$notification_sent_count mailhog_matches=$mailhog_match_count"
 echo "[smoke:rejected] SUCCESS"
