@@ -261,11 +261,12 @@ URL local esperada:
 Autenticação e teste local:
 
 - `VITE_AUTH_PROVIDER=demo`
-  - usa a tela de login com as credenciais semeadas localmente
-  - essas credenciais são trocadas por um token real no Keycloak local
-  - é apenas um atalho de UX para as contas semeadas
+  - usa a tela de contas semeadas para facilitar o teste local
+  - preenche usuario e senha de contas semeadas do Keycloak
+  - o login real continua acontecendo no provedor de identidade
 - `VITE_AUTH_PROVIDER=keycloak`
-  - usa a mesma tela de login, mas troca usuário/senha por um token real do Keycloak local
+  - usa a mesma tela de login com usuario e senha
+  - o frontend troca as credenciais por um token real no Keycloak local
   - exige o Keycloak da stack local disponível
   - para este modo, configure o `api-gateway` com:
 
@@ -286,6 +287,7 @@ Observação arquitetural:
 - a fonte de identidade continua sendo o Keycloak local (`infra/keycloak/import/realm-event-pipeline.json`)
 - a tela “demo access” apenas expõe contas semeadas no Keycloak para facilitar teste imediato
 - o “seed” de usuários de demonstração acontece no realm importado do Keycloak, que é o lugar correto para identidades
+- o `user-web` usa um fluxo simples de usuario e senha no Keycloak para o ambiente local
 - no Docker dev, o `api-gateway` valida `iss` como `http://localhost:8080/realms/event-pipeline`
 - no Docker dev, o `api-gateway` busca JWKS internamente em `http://keycloak:8080/.../certs`, evitando conflito entre hostname externo e rede interna
 

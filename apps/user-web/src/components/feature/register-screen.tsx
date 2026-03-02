@@ -42,12 +42,12 @@ export function RegisterScreen({
             sx={{ width: 'fit-content', fontWeight: 700 }}
           />
           <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: '-0.03em' }}>
-            Create access for the local demo
+            Use seeded accounts for the local demo
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '54ch' }}>
             For portfolio quality, authentication is not persisted inside the domain database. The
             canonical identity source remains Keycloak. This screen exposes the seeded local
-            accounts so you can test the flow immediately.
+            accounts so you can prefill the login form and test immediately.
           </Typography>
         </Stack>
 

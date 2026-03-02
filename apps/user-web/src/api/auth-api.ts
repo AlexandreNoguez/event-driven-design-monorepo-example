@@ -37,36 +37,17 @@ export function listDemoAccounts(): DemoAccountPreset[] {
 }
 
 export async function signIn(input: LoginInput): Promise<LoginResult> {
-  if (userWebConfig.authProvider === 'keycloak') {
-    return signInWithKeycloak(input);
+  if (userWebConfig.authProvider === 'demo') {
+    const matchedAccount = DEMO_ACCOUNTS.find(
+      (account) =>
+        account.username === input.username.trim() && account.password === input.password,
+    );
+
+    if (!matchedAccount) {
+      throw new Error('Invalid credentials. Use one of the seeded Keycloak demo accounts.');
+    }
   }
 
-  return signInWithDemo(input);
-}
-
-async function signInWithDemo(input: LoginInput): Promise<LoginResult> {
-  const matchedAccount = DEMO_ACCOUNTS.find(
-    (account) =>
-      account.username === input.username.trim() && account.password === input.password,
-  );
-
-  if (!matchedAccount) {
-    throw new Error('Invalid credentials. Use one of the seeded Keycloak demo accounts.');
-  }
-
-  const tokenResult = await exchangePasswordForToken(input);
-
-  return {
-    sessionMode: 'bearer',
-    accessToken: tokenResult.accessToken,
-    user: {
-      ...tokenResult.user,
-      authProvider: 'demo',
-    },
-  };
-}
-
-async function signInWithKeycloak(input: LoginInput): Promise<LoginResult> {
   const tokenResult = await exchangePasswordForToken(input);
 
   return {
@@ -86,14 +67,22 @@ async function exchangePasswordForToken(
     password: input.password,
   });
 
-  let response;
   try {
-    response = await axios.post<KeycloakTokenResponse>(buildTokenEndpoint(), body, {
+    const response = await axios.post<KeycloakTokenResponse>(buildTokenEndpoint(), body, {
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
       },
       timeout: 10000,
     });
+
+    if (!response.data.access_token) {
+      throw new Error('Keycloak did not return an access token.');
+    }
+
+    return {
+      accessToken: response.data.access_token,
+      user: toUserProfileFromJwt(response.data.access_token),
+    };
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const statusCode = error.response?.status;
@@ -111,15 +100,6 @@ async function exchangePasswordForToken(
 
     throw error;
   }
-
-  if (!response.data.access_token) {
-    throw new Error('Keycloak did not return an access token.');
-  }
-
-  return {
-    accessToken: response.data.access_token,
-    user: toUserProfileFromJwt(response.data.access_token),
-  };
 }
 
 function buildTokenEndpoint(): string {
@@ -137,6 +117,9 @@ function toUserProfileFromJwt(accessToken: string): UserProfile {
   const roles = Array.isArray(realmAccess.roles)
     ? realmAccess.roles.filter((role): role is string => typeof role === 'string')
     : [];
+  const isSeededDemoUser = DEMO_ACCOUNTS.some(
+    (account) => account.username === preferredUsername,
+  );
 
   return {
     username: preferredUsername,
@@ -145,7 +128,7 @@ function toUserProfileFromJwt(accessToken: string): UserProfile {
     displayName: name.length > 0 ? name : preferredUsername,
     email: stringOrFallback(payload.email, `${preferredUsername}@local.test`),
     roles,
-    authProvider: 'keycloak',
+    authProvider: isSeededDemoUser ? 'demo' : 'keycloak',
   };
 }
 

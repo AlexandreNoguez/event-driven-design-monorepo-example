@@ -55,7 +55,7 @@ export function LoginScreen({
             label={
               authProvider === 'demo'
                 ? 'Seeded Keycloak Demo Accounts'
-                : 'Keycloak Password Grant (Local)'
+                : 'Keycloak User Password Login'
             }
             color="primary"
             variant="outlined"
