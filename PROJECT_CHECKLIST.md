@@ -186,7 +186,7 @@
   - `api-gateway` usa filtro HTTP global com envelope de erro padronizado (`code`, `message`, `statusCode`, `correlationId`, `path`, `method`)
 - [x] Logs estruturados com `correlationId` em todos serviços
   - Cobertura em todos os servicos: bootstraps, consumers/publishers AMQP, use cases principais, outbox pollers, repositórios/infra e componentes operacionais do `api-gateway` (DLQ admin, command publisher, filtro HTTP)
-- [ ] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
+- [x] Planejar introdução de Saga (v0.2) sem quebrar o MVP atual
   - [x] Definir Saga coreografada com Process Manager explícito (documentação + ADR)
   - [x] Modelar estados da saga e regras de transição (`completed` / `failed` / `timed-out`)
   - [x] Definir timeouts de processo e política de expiração
@@ -253,7 +253,8 @@
 
 ## 12) “Definition of Done” (DoD) do MVP
 
-- [ ] Usuário faz upload e vê status por etapa até concluir
+- [x] Usuário faz upload e vê status por etapa até concluir
+  - Fluxo validado no `user-web`: login, upload, confirmação e atualização de status até conclusão
 - [ ] Admin vê visão global e consegue reprocessar
 - [x] Eventos trafegam via RabbitMQ com DLQ configurado
 - [x] Outbox e idempotência implementados
@@ -262,12 +263,15 @@
 
 ## 13) Arquitetura Frontend (regra obrigatória)
 - [ ] Definir estado global com Zustand para cada app (`user-web` e `admin-web`)
+  - [x] `user-web`
+  - [ ] `admin-web`
 - [ ] Proibir lógica de negócio em componentes de apresentação
 - [ ] Centralizar regras de negócio, effects e integração com APIs em hooks customizados
 - [ ] Criar organização base de frontend:
-  - [ ] `stores/` (estado global)
-  - [ ] `hooks/` (casos de uso e regras)
-  - [ ] `components/ui/` (apresentação pura)
-  - [ ] `components/feature/` (composição sem regra de negócio)
+  - [x] `stores/` (estado global) em `user-web`
+  - [x] `hooks/` (casos de uso e regras) em `user-web`
+  - [x] `components/ui/` (apresentação pura) em `user-web`
+  - [x] `components/feature/` (composição sem regra de negócio) em `user-web`
+  - [ ] Replicar a mesma base no `admin-web`
 - [ ] Garantir que componentes de apresentação recebam apenas `props` e callbacks
 - [ ] Definir guideline de revisão: PR é bloqueado se houver regra de negócio em componente visual
