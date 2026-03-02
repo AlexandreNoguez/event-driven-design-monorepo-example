@@ -2,7 +2,6 @@ import axios, {
   AxiosError,
   type AxiosHeaders,
   type AxiosRequestConfig,
-  type RawAxiosRequestHeaders,
 } from 'axios';
 import { userWebConfig } from '../config/user-web-config';
 import type { SessionMode } from '../types/auth';
@@ -57,8 +56,16 @@ export function buildCorrelationId(prefix: string): string {
 function buildHeaders(
   session: ApiSession,
   headers: AxiosRequestConfig['headers'],
-): RawAxiosRequestHeaders | AxiosHeaders {
-  const result = axios.AxiosHeaders.from(headers);
+): AxiosHeaders {
+  const result = new axios.AxiosHeaders();
+
+  if (headers && typeof headers === 'object') {
+    for (const [key, value] of Object.entries(headers)) {
+      if (value !== undefined && value !== null) {
+        result.set(key, String(value));
+      }
+    }
+  }
 
   if (!result.has('content-type')) {
     result.set('content-type', 'application/json');

@@ -7,10 +7,10 @@ import type {
   UserProfile,
 } from '../types/auth';
 
-interface KeycloakTokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  token_type?: string;
+interface SignInResponse {
+  sessionMode: 'bearer';
+  accessToken: string;
+  user: UserProfile;
 }
 
 const DEMO_ACCOUNTS: DemoAccountPreset[] = [
@@ -60,28 +60,28 @@ export async function signIn(input: LoginInput): Promise<LoginResult> {
 async function exchangePasswordForToken(
   input: LoginInput,
 ): Promise<{ accessToken: string; user: UserProfile }> {
-  const body = new URLSearchParams({
-    grant_type: 'password',
-    client_id: userWebConfig.keycloakClientId,
-    username: input.username.trim(),
-    password: input.password,
-  });
-
   try {
-    const response = await axios.post<KeycloakTokenResponse>(buildTokenEndpoint(), body, {
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
+    const response = await axios.post<SignInResponse>(
+      `${userWebConfig.apiBaseUrl}/auth/login`,
+      {
+        username: input.username.trim(),
+        password: input.password,
       },
-      timeout: 10000,
-    });
+      {
+        headers: {
+          'content-type': 'application/json',
+        },
+        timeout: 10000,
+      },
+    );
 
-    if (!response.data.access_token) {
-      throw new Error('Keycloak did not return an access token.');
+    if (!response.data.accessToken) {
+      throw new Error('The API gateway did not return an access token.');
     }
 
     return {
-      accessToken: response.data.access_token,
-      user: toUserProfileFromJwt(response.data.access_token),
+      accessToken: response.data.accessToken,
+      user: response.data.user,
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -94,55 +94,10 @@ async function exchangePasswordForToken(
             : error.message;
 
       throw new Error(
-        `Keycloak login failed${statusCode ? ` (${statusCode})` : ''}. ${responseData || 'Check your local Keycloak configuration.'}`,
+        `Sign-in failed${statusCode ? ` (${statusCode})` : ''}. ${responseData || 'Check the API gateway and Keycloak containers.'}`,
       );
     }
 
     throw error;
   }
-}
-
-function buildTokenEndpoint(): string {
-  return `${userWebConfig.keycloakBaseUrl}/realms/${encodeURIComponent(userWebConfig.keycloakRealm)}/protocol/openid-connect/token`;
-}
-
-function toUserProfileFromJwt(accessToken: string): UserProfile {
-  const [, payloadSegment = ''] = accessToken.split('.');
-  const payload = decodeBase64UrlJson(payloadSegment) as Record<string, unknown>;
-  const preferredUsername = stringOrFallback(payload.preferred_username, 'user');
-  const firstName = stringOrFallback(payload.given_name, preferredUsername);
-  const lastName = stringOrFallback(payload.family_name, '');
-  const name = stringOrFallback(payload.name, `${firstName} ${lastName}`.trim());
-  const realmAccess = isRecord(payload.realm_access) ? payload.realm_access : {};
-  const roles = Array.isArray(realmAccess.roles)
-    ? realmAccess.roles.filter((role): role is string => typeof role === 'string')
-    : [];
-  const isSeededDemoUser = DEMO_ACCOUNTS.some(
-    (account) => account.username === preferredUsername,
-  );
-
-  return {
-    username: preferredUsername,
-    firstName,
-    lastName,
-    displayName: name.length > 0 ? name : preferredUsername,
-    email: stringOrFallback(payload.email, `${preferredUsername}@local.test`),
-    roles,
-    authProvider: isSeededDemoUser ? 'demo' : 'keycloak',
-  };
-}
-
-function decodeBase64UrlJson(value: string): unknown {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  const decoded = globalThis.atob(padded);
-  return JSON.parse(decoded) as unknown;
-}
-
-function stringOrFallback(value: unknown, fallback: string): string {
-  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

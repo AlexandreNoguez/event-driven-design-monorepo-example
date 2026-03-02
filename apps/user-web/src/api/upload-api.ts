@@ -35,7 +35,7 @@ export async function createUploadSession(
 ): Promise<CreateUploadResponse> {
   return requestJson<CreateUploadResponse>('/uploads', session, {
     method: 'POST',
-    body: JSON.stringify(input),
+    data: input,
   });
 }
 
@@ -45,7 +45,7 @@ export async function confirmUpload(
 ): Promise<ConfirmUploadResponse> {
   return requestJson<ConfirmUploadResponse>(`/uploads/${fileId}/confirm`, session, {
     method: 'POST',
-    body: JSON.stringify({}),
+    data: {},
   });
 }
 
