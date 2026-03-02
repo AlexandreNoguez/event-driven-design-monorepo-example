@@ -49,7 +49,6 @@ export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
       verified = jwt.verify(token, pem, {
         algorithms: ['RS256', 'RS384', 'RS512'],
         issuer,
-        audience,
       });
     } catch (error) {
       throw new UnauthorizedException(
@@ -66,6 +65,8 @@ export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
     if (!claims.sub || typeof claims.sub !== 'string') {
       throw new UnauthorizedException('JWT payload is missing "sub".');
     }
+
+    this.assertAudience(claims, audience);
 
     return this.toAuthenticatedUser(claims);
   }
@@ -85,6 +86,33 @@ export class KeycloakAccessTokenVerifierService implements AccessTokenVerifier {
     }
 
     return `${issuer.replace(/\/$/, '')}/protocol/openid-connect/certs`;
+  }
+
+  private assertAudience(claims: JwtAccessTokenClaims, expectedAudience?: string): void {
+    if (!expectedAudience) {
+      return;
+    }
+
+    const tokenAudiences = Array.isArray(claims.aud)
+      ? claims.aud.filter((value): value is string => typeof value === 'string')
+      : typeof claims.aud === 'string'
+        ? [claims.aud]
+        : [];
+
+    if (tokenAudiences.includes(expectedAudience)) {
+      return;
+    }
+
+    // Keycloak public clients commonly emit azp without an aud claim.
+    if (
+      tokenAudiences.length === 0 &&
+      typeof claims.azp === 'string' &&
+      claims.azp === this.config.keycloakUserWebClientId
+    ) {
+      return;
+    }
+
+    throw new UnauthorizedException(`JWT audience invalid. expected: ${expectedAudience}`);
   }
 
   private async findJwk(jwksUrl: string, kid: string): Promise<JsonWebKey> {

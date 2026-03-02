@@ -23,6 +23,10 @@ const DEFAULTS = {
   uploadMaxSizeBytes: 20 * 1024 * 1024,
   allowedUploadMimeTypes: 'image/png,image/jpeg,image/webp,application/pdf',
   authDevBypass: false,
+  keycloakInternalUrl: 'http://localhost:8080',
+  keycloakRealm: 'event-pipeline',
+  keycloakUserWebClientId: 'user-web',
+  keycloakPasswordGrantTimeoutMs: 10000,
   jwtAudience: '',
   jwtJwksCacheTtlMs: 300000,
   jwtJwksFetchTimeoutMs: 5000,
@@ -104,6 +108,21 @@ export class ApiGatewayConfigService {
   get authDevBypassEnabled(): boolean {
     return this.config.get<boolean>('API_GATEWAY_AUTH_DEV_BYPASS', DEFAULTS.authDevBypass);
   }
+  get keycloakInternalUrl(): string {
+    return this.config.get<string>('KEYCLOAK_INTERNAL_URL', DEFAULTS.keycloakInternalUrl);
+  }
+  get keycloakRealm(): string {
+    return this.config.get<string>('KEYCLOAK_REALM', DEFAULTS.keycloakRealm);
+  }
+  get keycloakUserWebClientId(): string {
+    return this.config.get<string>('KEYCLOAK_CLIENT_ID', DEFAULTS.keycloakUserWebClientId);
+  }
+  get keycloakPasswordGrantTimeoutMs(): number {
+    return this.config.get<number>(
+      'API_GATEWAY_KEYCLOAK_TIMEOUT_MS',
+      DEFAULTS.keycloakPasswordGrantTimeoutMs,
+    );
+  }
   get jwtIssuerUrl(): string | undefined {
     return optionalString(this.config.get<string>('JWT_ISSUER_URL'));
   }
@@ -166,6 +185,15 @@ export function validateApiGatewayEnvironment(raw: Record<string, unknown>): Rec
     raw.API_GATEWAY_AUTH_DEV_BYPASS,
     DEFAULTS.authDevBypass,
     'API_GATEWAY_AUTH_DEV_BYPASS',
+  );
+  env.KEYCLOAK_INTERNAL_URL =
+    optionalString(raw.KEYCLOAK_INTERNAL_URL) ?? DEFAULTS.keycloakInternalUrl;
+  env.KEYCLOAK_REALM = optionalString(raw.KEYCLOAK_REALM) ?? DEFAULTS.keycloakRealm;
+  env.KEYCLOAK_CLIENT_ID = optionalString(raw.KEYCLOAK_CLIENT_ID) ?? DEFAULTS.keycloakUserWebClientId;
+  env.API_GATEWAY_KEYCLOAK_TIMEOUT_MS = toPositiveInt(
+    raw.API_GATEWAY_KEYCLOAK_TIMEOUT_MS,
+    DEFAULTS.keycloakPasswordGrantTimeoutMs,
+    'API_GATEWAY_KEYCLOAK_TIMEOUT_MS',
   );
   env.JWT_AUDIENCE = optionalString(raw.JWT_AUDIENCE) ?? DEFAULTS.jwtAudience;
   env.JWT_JWKS_URL = optionalString(raw.JWT_JWKS_URL) ?? '';

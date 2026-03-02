@@ -9,6 +9,8 @@ export interface AuthenticatedUser {
 
 export interface JwtAccessTokenClaims extends Record<string, unknown> {
   sub: string;
+  aud?: string | string[];
+  azp?: string;
   preferred_username?: string;
   email?: string;
   realm_access?: {
