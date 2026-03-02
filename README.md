@@ -155,6 +155,7 @@ pnpm docker:down:infra
 - MinIO API (S3): `http://localhost:9000`
 - MinIO Console: `http://localhost:9001`
 - Keycloak: `http://localhost:8080`
+  - se você roda Docker dentro do WSL2 e acessa pelo navegador do Windows, veja `docs/wsl-windows-networking.md`
 - Mailhog (SMTP): `localhost:1025`
 - Mailhog UI: `http://localhost:8025`
 
@@ -315,6 +316,8 @@ Se o login falhar por timeout no Keycloak:
 pnpm docker:down
 pnpm docker:up
 ```
+
+4. se você estiver rodando Docker dentro do WSL2 e testando pelo Windows 10, consulte `docs/wsl-windows-networking.md`
 
 ---
 
