@@ -244,7 +244,7 @@ Preparação:
 cp apps/user-web/.env.example apps/user-web/.env
 ```
 
-Para o fluxo recomendado, o login do `user-web` usa sempre o Keycloak local.
+Para o fluxo recomendado, o login do `user-web` usa sempre o Keycloak local, mas a chamada de login sai pelo `api-gateway` em `POST /auth/login`.
 
 Execução:
 
@@ -263,11 +263,11 @@ Autenticação e teste local:
 - `VITE_AUTH_PROVIDER=demo`
   - usa a tela de contas semeadas para facilitar o teste local
   - preenche usuario e senha de contas semeadas do Keycloak
-  - o login real continua acontecendo no provedor de identidade
+  - o login real continua acontecendo no Keycloak, mediado pelo `api-gateway`
 - `VITE_AUTH_PROVIDER=keycloak`
   - usa a mesma tela de login com usuario e senha
-  - o frontend troca as credenciais por um token real no Keycloak local
-  - exige o Keycloak da stack local disponível
+  - o frontend envia as credenciais ao `api-gateway`, que troca por token usando a rede interna Docker
+  - isso evita depender do browser conseguir acessar `http://localhost:8080`
   - para este modo, configure o `api-gateway` com:
 
 ```env
@@ -288,8 +288,10 @@ Observação arquitetural:
 - a tela “demo access” apenas expõe contas semeadas no Keycloak para facilitar teste imediato
 - o “seed” de usuários de demonstração acontece no realm importado do Keycloak, que é o lugar correto para identidades
 - o `user-web` usa um fluxo simples de usuario e senha no Keycloak para o ambiente local
+- o browser nao precisa acessar o Keycloak diretamente para autenticar; basta alcançar `http://localhost:3000`
 - no Docker dev, o `api-gateway` valida `iss` como `http://localhost:8080/realms/event-pipeline`
 - no Docker dev, o `api-gateway` busca JWKS internamente em `http://keycloak:8080/.../certs`, evitando conflito entre hostname externo e rede interna
+- no Docker dev, o `api-gateway` tambem usa `http://keycloak:8080` internamente para o password grant local
 
 Se aparecer `401 Missing Authorization header` ao tentar `POST /uploads`, isso indica um destes cenários:
 
@@ -305,8 +307,9 @@ Correções:
 
 Se o login falhar por timeout no Keycloak:
 
-1. use `http://localhost:8080/admin/` ou `http://localhost:8080/realms/event-pipeline/.well-known/openid-configuration` para validar a disponibilidade, nao apenas a raiz `/`
-2. reinicie a stack para aplicar a configuracao de hostname corrigida:
+1. confirme primeiro que `http://localhost:3000/health` responde, porque o frontend depende do gateway para autenticar
+2. se quiser validar o Keycloak manualmente, use `http://localhost:8080/admin/` ou `http://localhost:8080/realms/event-pipeline/.well-known/openid-configuration`
+3. reinicie a stack para reaplicar a configuracao interna do gateway e do Keycloak:
 
 ```bash
 pnpm docker:down
